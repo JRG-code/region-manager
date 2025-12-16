@@ -300,6 +300,346 @@
 }
 
 /* ========================================
+   Modal Styles
+   ======================================== */
+
+.rm-modal {
+	display: none;
+	position: fixed;
+	z-index: 999999;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	background-color: rgba(0, 0, 0, 0.5);
+}
+
+.rm-modal-dialog {
+	position: relative;
+	width: 90%;
+	max-width: 800px;
+	margin: 50px auto;
+	background-color: #fff;
+	border-radius: 4px;
+	box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.rm-modal-content {
+	padding: 0;
+}
+
+.rm-modal-header {
+	padding: 20px;
+	border-bottom: 1px solid #dcdcde;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.rm-modal-header h2 {
+	margin: 0;
+	font-size: 20px;
+}
+
+.rm-modal-close {
+	background: none;
+	border: none;
+	font-size: 28px;
+	line-height: 1;
+	cursor: pointer;
+	color: #50575e;
+	padding: 0;
+	width: 30px;
+	height: 30px;
+}
+
+.rm-modal-close:hover {
+	color: #135e96;
+}
+
+.rm-modal-body {
+	padding: 20px;
+	max-height: 70vh;
+	overflow-y: auto;
+}
+
+.rm-modal-footer {
+	padding: 20px;
+	border-top: 1px solid #dcdcde;
+	text-align: right;
+}
+
+.rm-modal-footer .button {
+	margin-left: 8px;
+}
+
+body.rm-modal-open {
+	overflow: hidden;
+}
+
+/* ========================================
+   Form Styles
+   ======================================== */
+
+.rm-form-group {
+	margin-bottom: 20px;
+}
+
+.rm-form-group label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
+.rm-form-group .required {
+	color: #d63638;
+}
+
+.rm-form-group .rm-input {
+	width: 100%;
+	padding: 8px 12px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.rm-form-group .rm-input:focus {
+	border-color: #2271b1;
+	outline: none;
+	box-shadow: 0 0 0 1px #2271b1;
+}
+
+.rm-form-group .description {
+	margin-top: 5px;
+	color: #646970;
+	font-size: 13px;
+	font-style: italic;
+}
+
+/* ========================================
+   Countries Table in Modal
+   ======================================== */
+
+.rm-countries-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: 10px;
+}
+
+.rm-countries-table thead {
+	background-color: #f9f9f9;
+}
+
+.rm-countries-table th,
+.rm-countries-table td {
+	padding: 10px;
+	text-align: left;
+	border-bottom: 1px solid #e5e5e5;
+}
+
+.rm-countries-table th {
+	font-weight: 600;
+	color: #23282d;
+}
+
+.rm-countries-table code {
+	background: #f0f0f1;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 12px;
+}
+
+.rm-countries-table .rm-input {
+	width: 100%;
+	padding: 6px 10px;
+}
+
+.rm-countries-table .rm-text-center {
+	text-align: center;
+}
+
+.rm-countries-table tbody tr:hover {
+	background-color: #f9f9f9;
+}
+
+/* ========================================
+   Tab Header/Footer
+   ======================================== */
+
+.rm-tab-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	margin-bottom: 20px;
+	padding-bottom: 15px;
+	border-bottom: 1px solid #ccd0d4;
+}
+
+.rm-tab-header-left h2 {
+	margin-top: 0;
+	margin-bottom: 5px;
+}
+
+.rm-tab-header-left .description {
+	margin: 0;
+	color: #646970;
+}
+
+.rm-tab-header-right {
+	text-align: right;
+}
+
+/* ========================================
+   Empty State
+   ======================================== */
+
+.rm-empty-state {
+	text-align: center;
+	padding: 60px 20px;
+	background: #f9f9f9;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.rm-empty-icon {
+	font-size: 64px;
+	color: #c3c4c7;
+	margin-bottom: 20px;
+}
+
+.rm-empty-icon .dashicons {
+	width: 64px;
+	height: 64px;
+	font-size: 64px;
+}
+
+.rm-empty-state h3 {
+	margin: 0 0 10px;
+	color: #23282d;
+}
+
+.rm-empty-state p {
+	color: #646970;
+	margin-bottom: 20px;
+}
+
+/* ========================================
+   Settings Sections
+   ======================================== */
+
+.rm-settings-section {
+	background: #fff;
+	padding: 20px;
+	margin-bottom: 20px;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+}
+
+.rm-settings-section h3 {
+	margin-top: 0;
+	margin-bottom: 15px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.rm-conditional-field {
+	background: #f9f9f9;
+	padding: 15px;
+	border-left: 3px solid #2271b1;
+	margin-top: 10px;
+	border-radius: 3px;
+}
+
+/* ========================================
+   Info Boxes
+   ======================================== */
+
+.rm-info-box {
+	background: #f0f6fc;
+	border: 1px solid #c3d9f1;
+	padding: 15px;
+	border-radius: 4px;
+	margin-bottom: 15px;
+}
+
+.rm-info-box p:first-child {
+	margin-top: 0;
+}
+
+.rm-info-box p:last-child {
+	margin-bottom: 0;
+}
+
+.rm-info-box .dashicons {
+	vertical-align: middle;
+	margin-right: 5px;
+	color: #2271b1;
+}
+
+/* ========================================
+   Code Boxes
+   ======================================== */
+
+.rm-code-box {
+	margin-bottom: 20px;
+}
+
+.rm-code-box h4 {
+	margin-top: 0;
+	margin-bottom: 10px;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.rm-code-box pre {
+	background: #282c34;
+	color: #abb2bf;
+	padding: 15px;
+	border-radius: 4px;
+	overflow-x: auto;
+	margin: 0;
+}
+
+.rm-code-box code {
+	font-family: 'Courier New', Courier, monospace;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+/* ========================================
+   Plugin List
+   ======================================== */
+
+.rm-plugin-list {
+	list-style: none;
+	padding: 0;
+	margin: 15px 0;
+}
+
+.rm-plugin-list li {
+	padding: 10px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.rm-plugin-list li:last-child {
+	border-bottom: none;
+}
+
+/* ========================================
+   Text Utilities
+   ======================================== */
+
+.rm-text-muted {
+	color: #646970;
+	font-style: italic;
+}
+
+.rm-text-center {
+	text-align: center;
+}
+
+/* ========================================
    Responsive Styles
    ======================================== */
 
@@ -319,5 +659,32 @@
 	.rm-table td {
 		padding: 8px;
 		font-size: 13px;
+	}
+
+	.rm-tab-header {
+		flex-direction: column;
+	}
+
+	.rm-tab-header-right {
+		margin-top: 15px;
+		text-align: left;
+	}
+
+	.rm-modal-dialog {
+		width: 95%;
+		margin: 20px auto;
+	}
+
+	.rm-modal-body {
+		max-height: 60vh;
+	}
+
+	.rm-countries-table {
+		font-size: 13px;
+	}
+
+	.rm-countries-table th,
+	.rm-countries-table td {
+		padding: 8px 5px;
 	}
 }

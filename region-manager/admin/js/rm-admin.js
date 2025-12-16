@@ -210,13 +210,312 @@
 	};
 
 	/**
+	 * Region Management
+	 */
+	var RegionManager = {
+		selectedCountries: [],
+
+		init: function() {
+			// Add region button
+			$( document ).on( 'click', '#rm-add-region', function() {
+				RegionManager.openModal();
+			});
+
+			// Edit region button
+			$( document ).on( 'click', '.rm-edit-region', function() {
+				var regionId = $( this ).data( 'region-id' );
+				RegionManager.openModal( regionId );
+			});
+
+			// Delete region button
+			$( document ).on( 'click', '.rm-delete-region', function() {
+				if ( confirm( rmAdmin.i18n.confirmDelete ) ) {
+					var regionId = $( this ).data( 'region-id' );
+					RegionManager.deleteRegion( regionId );
+				}
+			});
+
+			// Modal close
+			$( document ).on( 'click', '.rm-modal-close, #rm-modal-cancel', function() {
+				RegionManager.closeModal();
+			});
+
+			// Click outside modal to close
+			$( document ).on( 'click', '.rm-modal', function( e ) {
+				if ( $( e.target ).hasClass( 'rm-modal' ) ) {
+					RegionManager.closeModal();
+				}
+			});
+
+			// Save region
+			$( document ).on( 'click', '#rm-save-region', function() {
+				RegionManager.saveRegion();
+			});
+
+			// Auto-generate slug from name
+			$( document ).on( 'input', '#region_name', function() {
+				var name = $( this ).val();
+				var slug = name.toLowerCase()
+					.replace( /[^\w\s-]/g, '' )
+					.replace( /\s+/g, '-' )
+					.replace( /-+/g, '-' )
+					.trim();
+				$( '#region_slug' ).val( slug );
+			});
+
+			// Country select
+			$( document ).on( 'change', '#country-select', function() {
+				var countryCode = $( this ).val();
+				if ( countryCode && typeof rmCountries !== 'undefined' ) {
+					RegionManager.addCountry( countryCode, rmCountries[countryCode] );
+					$( this ).val( '' ).trigger( 'change' );
+				}
+			});
+
+			// Remove country
+			$( document ).on( 'click', '.rm-remove-country', function() {
+				var countryCode = $( this ).data( 'country' );
+				RegionManager.removeCountry( countryCode );
+			});
+
+			// Set default country
+			$( document ).on( 'change', '.rm-country-default', function() {
+				$( '.rm-country-default' ).not( this ).prop( 'checked', false );
+			});
+		},
+
+		openModal: function( regionId ) {
+			regionId = regionId || 0;
+
+			// Reset form
+			$( '#rm-region-form' )[0].reset();
+			$( '#region_id' ).val( regionId );
+			this.selectedCountries = [];
+			$( '#selected-countries' ).empty();
+
+			if ( regionId > 0 ) {
+				// Edit mode - load region data
+				$( '#rm-modal-title' ).text( 'Edit Region' );
+				this.loadRegion( regionId );
+			} else {
+				// Add mode
+				$( '#rm-modal-title' ).text( 'Add New Region' );
+			}
+
+			$( '#rm-region-modal' ).fadeIn( 200 );
+			$( 'body' ).addClass( 'rm-modal-open' );
+		},
+
+		closeModal: function() {
+			$( '#rm-region-modal' ).fadeOut( 200 );
+			$( 'body' ).removeClass( 'rm-modal-open' );
+		},
+
+		loadRegion: function( regionId ) {
+			RegionManagerAdmin.ajax( 'rm_get_region', { region_id: regionId }, function( data ) {
+				// Fill form
+				$( '#region_name' ).val( data.region.name );
+				$( '#region_slug' ).val( data.region.slug );
+				$( '#region_status' ).val( data.region.status );
+
+				// Add countries
+				if ( data.countries && typeof rmCountries !== 'undefined' ) {
+					data.countries.forEach( function( country ) {
+						RegionManager.addCountry(
+							country.country_code,
+							rmCountries[country.country_code],
+							country.url_slug,
+							country.language_code,
+							country.is_default == 1
+						);
+					});
+				}
+			}, function( error ) {
+				alert( error.message || 'Failed to load region' );
+			});
+		},
+
+		addCountry: function( code, name, urlSlug, languageCode, isDefault ) {
+			// Check if already added
+			if ( this.selectedCountries.indexOf( code ) !== -1 ) {
+				return;
+			}
+
+			this.selectedCountries.push( code );
+
+			urlSlug = urlSlug || '/' + code.toLowerCase();
+			languageCode = languageCode || 'en_US';
+			isDefault = isDefault || false;
+
+			var row = '<tr data-country="' + code + '">' +
+				'<td><strong>' + name + '</strong> <code>' + code + '</code></td>' +
+				'<td>' +
+				'<input type="text" class="rm-input rm-country-url-slug" value="' + urlSlug + '" placeholder="/pt" />' +
+				'</td>' +
+				'<td>' +
+				'<select class="rm-input rm-country-language">' +
+				this.getLanguageOptions( languageCode ) +
+				'</select>' +
+				'</td>' +
+				'<td class="rm-text-center">' +
+				'<input type="radio" class="rm-country-default" name="default_country" value="' + code + '"' + ( isDefault ? ' checked' : '' ) + ' />' +
+				'</td>' +
+				'<td class="rm-text-center">' +
+				'<button type="button" class="button button-small rm-remove-country" data-country="' + code + '">Remove</button>' +
+				'</td>' +
+				'</tr>';
+
+			$( '#selected-countries' ).append( row );
+		},
+
+		removeCountry: function( code ) {
+			var index = this.selectedCountries.indexOf( code );
+			if ( index > -1 ) {
+				this.selectedCountries.splice( index, 1 );
+			}
+			$( 'tr[data-country="' + code + '"]' ).remove();
+		},
+
+		getLanguageOptions: function( selected ) {
+			var options = '';
+			if ( typeof rmLanguageCodes !== 'undefined' ) {
+				$.each( rmLanguageCodes, function( code, label ) {
+					options += '<option value="' + code + '"' + ( code === selected ? ' selected' : '' ) + '>' + label + '</option>';
+				});
+			}
+			return options;
+		},
+
+		saveRegion: function() {
+			var regionId = $( '#region_id' ).val();
+			var name = $( '#region_name' ).val().trim();
+			var slug = $( '#region_slug' ).val().trim();
+			var status = $( '#region_status' ).val();
+
+			// Validate
+			if ( ! name ) {
+				alert( 'Region name is required' );
+				return;
+			}
+
+			if ( ! slug ) {
+				alert( 'Region slug is required' );
+				return;
+			}
+
+			// Collect countries
+			var countries = [];
+			$( '#selected-countries tr' ).each( function() {
+				var countryCode = $( this ).data( 'country' );
+				var urlSlug = $( this ).find( '.rm-country-url-slug' ).val();
+				var languageCode = $( this ).find( '.rm-country-language' ).val();
+				var isDefault = $( this ).find( '.rm-country-default' ).is( ':checked' );
+
+				countries.push({
+					country_code: countryCode,
+					url_slug: urlSlug,
+					language_code: languageCode,
+					is_default: isDefault
+				});
+			});
+
+			// Show loading
+			var $button = $( '#rm-save-region' );
+			var buttonText = $button.text();
+			$button.prop( 'disabled', true ).text( 'Saving...' );
+
+			// Send AJAX
+			RegionManagerAdmin.ajax( 'rm_save_region', {
+				region_id: regionId,
+				name: name,
+				slug: slug,
+				status: status,
+				countries: JSON.stringify( countries )
+			}, function( data ) {
+				RegionManagerAdmin.showNotice( 'success', data.message );
+				RegionManager.closeModal();
+				setTimeout( function() {
+					location.reload();
+				}, 1000 );
+			}, function( error ) {
+				$button.prop( 'disabled', false ).text( buttonText );
+
+				if ( error.upgrade_url ) {
+					if ( confirm( error.message + '\n\nUpgrade now?' ) ) {
+						window.location.href = error.upgrade_url;
+					}
+				} else {
+					alert( error.message || 'Failed to save region' );
+				}
+			});
+		},
+
+		deleteRegion: function( regionId ) {
+			RegionManagerAdmin.ajax( 'rm_delete_region', { region_id: regionId }, function( data ) {
+				RegionManagerAdmin.showNotice( 'success', data.message );
+				setTimeout( function() {
+					location.reload();
+				}, 1000 );
+			}, function( error ) {
+				alert( error.message || 'Failed to delete region' );
+			});
+		}
+	};
+
+	/**
+	 * Checkout Settings
+	 */
+	var CheckoutSettings = {
+		init: function() {
+			$( document ).on( 'submit', '#rm-checkout-settings-form', function( e ) {
+				e.preventDefault();
+				CheckoutSettings.saveSettings();
+			});
+		},
+
+		saveSettings: function() {
+			var $button = $( '#rm-save-checkout-settings' );
+			var buttonText = $button.text();
+			$button.prop( 'disabled', true ).text( 'Saving...' );
+
+			var data = {
+				cross_region_purchase: $( 'input[name="cross_region_purchase"]:checked' ).val(),
+				extra_charge: $( '#extra_charge' ).val(),
+				charge_type: $( 'input[name="charge_type"]:checked' ).val(),
+				block_message: $( '#block_message' ).val(),
+				geoip_fallback: $( 'input[name="geoip_fallback"]' ).is( ':checked' ) ? 1 : 0
+			};
+
+			RegionManagerAdmin.ajax( 'rm_save_checkout_settings', data, function( response ) {
+				$button.prop( 'disabled', false ).text( buttonText );
+				RegionManagerAdmin.showNotice( 'success', response.message );
+			}, function( error ) {
+				$button.prop( 'disabled', false ).text( buttonText );
+				alert( error.message || 'Failed to save settings' );
+			});
+		}
+	};
+
+	/**
 	 * Initialize on document ready
 	 */
 	$( document ).ready( function() {
 		RegionManagerAdmin.init();
+		RegionManager.init();
+		CheckoutSettings.init();
+
+		// Initialize Select2 for country select if available
+		if ( $.fn.select2 && $( '#country-select' ).length ) {
+			$( '#country-select' ).select2({
+				placeholder: 'Select countries...',
+				width: '100%'
+			});
+		}
 	});
 
 	// Expose to global scope
 	window.RegionManagerAdmin = RegionManagerAdmin;
+	window.RegionManager = RegionManager;
+	window.CheckoutSettings = CheckoutSettings;
 
 })( jQuery );
