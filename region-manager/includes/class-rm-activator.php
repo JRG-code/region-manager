@@ -120,12 +120,14 @@ class RM_Activator {
 	 */
 	private static function set_default_options() {
 		$default_options = array(
-			'rm_default_region'           => '',
-			'rm_auto_detect_region'       => 'yes',
-			'rm_allow_region_switching'   => 'yes',
-			'rm_region_cookie_lifetime'   => 30,
-			'rm_fallback_behavior'        => 'default',
+			'rm_default_region'            => '',
+			'rm_auto_detect_region'        => 'yes',
+			'rm_allow_region_switching'    => 'yes',
+			'rm_region_cookie_lifetime'    => 30,
+			'rm_fallback_behavior'         => 'default',
 			'rm_hide_unavailable_products' => 'no',
+			'rm_license_status'            => 'free',
+			'rm_license_key'               => '',
 		);
 
 		foreach ( $default_options as $option_name => $option_value ) {

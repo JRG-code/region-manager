@@ -73,6 +73,7 @@ register_deactivation_hook( __FILE__, 'deactivate_region_manager' );
  */
 require RM_PLUGIN_DIR . 'includes/class-rm-loader.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-i18n.php';
+require RM_PLUGIN_DIR . 'includes/class-rm-license.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-admin.php';
 
 /**
@@ -205,10 +206,12 @@ final class Region_Manager {
 	 */
 	private function define_admin_hooks() {
 		$plugin_admin = new RM_Admin();
+		$plugin_license = RM_License::get_instance();
 
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_admin_menu' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+		$this->loader->add_action( 'admin_notices', $plugin_license, 'show_limit_notice' );
 	}
 
 	/**

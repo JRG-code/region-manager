@@ -236,6 +236,70 @@
 }
 
 /* ========================================
+   Settings Tabs Styles
+   ======================================== */
+
+.rm-settings-content {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-top: none;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.nav-tab-wrapper {
+	margin-bottom: 0;
+}
+
+/* ========================================
+   License Settings Styles
+   ======================================== */
+
+.rm-license-settings {
+	max-width: 800px;
+}
+
+.rm-license-settings .rm-status-badge {
+	font-size: 14px;
+	padding: 6px 12px;
+}
+
+.rm-license-settings .rm-status-badge.free {
+	background-color: #f0f0f1;
+	color: #50575e;
+}
+
+.rm-license-settings .rm-status-badge.pro {
+	background-color: #d4edda;
+	color: #155724;
+	font-weight: 600;
+}
+
+.rm-license-upgrade-box {
+	background: #f0f6fc;
+	border: 1px solid #c3d9f1;
+	padding: 20px;
+	margin-top: 20px;
+	border-radius: 4px;
+}
+
+.rm-license-upgrade-box h3 {
+	margin-top: 0;
+	color: #135e96;
+}
+
+.rm-license-upgrade-box ul {
+	list-style: disc;
+	margin-left: 20px;
+	margin-bottom: 15px;
+}
+
+.rm-license-upgrade-box ul li {
+	margin-bottom: 8px;
+}
+
+/* ========================================
    Responsive Styles
    ======================================== */
 
