@@ -103,17 +103,8 @@ class RM_Admin {
 	 * @since 1.0.0
 	 */
 	public function display_dashboard_page() {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'region-manager' ) );
-		}
-		?>
-		<div class="wrap rm-admin-wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-			<div class="rm-dashboard">
-				<p><?php esc_html_e( 'Welcome to Region Manager! Manage your WooCommerce products across multiple regions.', 'region-manager' ); ?></p>
-			</div>
-		</div>
-		<?php
+		$dashboard = new RM_Dashboard();
+		$dashboard->display();
 	}
 
 	/**
