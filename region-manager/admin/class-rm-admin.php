@@ -35,6 +35,7 @@ class RM_Admin {
 			'region-manager',
 			'rm-regions',
 			'rm-countries',
+			'rm-products',
 			'rm-settings',
 		);
 	}
@@ -84,6 +85,16 @@ class RM_Admin {
 			'manage_woocommerce',
 			'rm-countries',
 			array( $this, 'display_countries_page' )
+		);
+
+		// Products submenu.
+		add_submenu_page(
+			'region-manager',
+			esc_html__( 'Products', 'region-manager' ),
+			esc_html__( 'Products', 'region-manager' ),
+			'manage_woocommerce',
+			'rm-products',
+			array( $this, 'display_products_page' )
 		);
 
 		// Settings submenu.
@@ -143,6 +154,16 @@ class RM_Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Display the products page.
+	 *
+	 * @since 1.0.0
+	 */
+	public function display_products_page() {
+		$products = new RM_Products();
+		$products->display();
 	}
 
 	/**

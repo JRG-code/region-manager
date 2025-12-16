@@ -914,6 +914,412 @@ body.rm-modal-open {
 }
 
 /* ========================================
+   Products Page Styles
+   ======================================== */
+
+.rm-products-page .wp-heading-inline {
+	margin-bottom: 15px;
+}
+
+/* Top Bar */
+.rm-products-topbar {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+	padding: 15px;
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+}
+
+.rm-topbar-left {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.rm-topbar-right {
+	font-size: 14px;
+	color: #646970;
+}
+
+.rm-region-filter,
+.rm-bulk-action {
+	min-width: 180px;
+}
+
+.rm-product-search {
+	min-width: 300px;
+	padding: 6px 12px;
+}
+
+/* Products Table */
+.rm-products-table-wrapper {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.rm-products-table {
+	margin: 0;
+}
+
+.rm-products-table .check-column {
+	width: 40px;
+	padding: 12px;
+}
+
+.rm-products-table .column-image {
+	width: 60px;
+	padding: 8px;
+}
+
+.rm-products-table .column-image img {
+	display: block;
+	max-width: 50px;
+	height: auto;
+	border-radius: 3px;
+}
+
+.rm-products-table .column-name {
+	width: 25%;
+	font-weight: 600;
+}
+
+.rm-products-table .column-name a {
+	text-decoration: none;
+	color: #2271b1;
+	font-weight: 600;
+}
+
+.rm-products-table .column-name a:hover {
+	color: #135e96;
+}
+
+.rm-products-table .column-sku {
+	width: 15%;
+	color: #646970;
+}
+
+.rm-products-table .column-price {
+	width: 12%;
+	font-weight: 600;
+}
+
+.rm-products-table .column-regions {
+	width: 20%;
+}
+
+.rm-products-table .column-stock {
+	width: 10%;
+}
+
+.rm-products-table .column-actions {
+	width: 10%;
+	text-align: right;
+}
+
+.rm-products-table th[data-sort] {
+	cursor: pointer;
+}
+
+.rm-products-table th[data-sort]:hover {
+	background: #f0f0f1;
+}
+
+/* Region Badges */
+.rm-region-badge {
+	display: inline-block;
+	padding: 4px 8px;
+	margin: 2px;
+	background: #f0f6fc;
+	border: 1px solid #c3d9f1;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 600;
+	color: #135e96;
+	white-space: nowrap;
+}
+
+.rm-no-regions {
+	color: #999;
+	font-style: italic;
+	font-size: 13px;
+}
+
+/* Stock Status */
+.rm-stock-status {
+	display: inline-block;
+	padding: 4px 8px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.rm-stock-status.in-stock {
+	background: #ecf7ed;
+	color: #46b450;
+}
+
+.rm-stock-status.out-of-stock {
+	background: #f8d7da;
+	color: #dc3232;
+}
+
+/* Loading & Empty States */
+.rm-loading-row td {
+	text-align: center;
+	padding: 40px 20px;
+}
+
+.rm-loading {
+	color: #646970;
+}
+
+.rm-no-products td {
+	text-align: center;
+	padding: 40px 20px;
+	color: #646970;
+	font-style: italic;
+}
+
+/* Pagination */
+.rm-pagination {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 15px;
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+}
+
+.rm-pagination-info {
+	font-size: 14px;
+	color: #646970;
+}
+
+.rm-pagination-links {
+	display: flex;
+	gap: 5px;
+}
+
+.rm-page-link {
+	display: inline-block;
+	padding: 6px 12px;
+	border: 1px solid #ccd0d4;
+	background: #fff;
+	color: #2271b1;
+	text-decoration: none;
+	border-radius: 3px;
+	font-size: 13px;
+	transition: all 0.2s ease;
+}
+
+.rm-page-link:hover:not(.disabled) {
+	background: #f0f0f1;
+	color: #135e96;
+}
+
+.rm-page-link.current {
+	background: #2271b1;
+	color: #fff;
+	border-color: #2271b1;
+}
+
+.rm-page-link.disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+.rm-page-dots {
+	padding: 6px 8px;
+	color: #646970;
+}
+
+/* Products Modal Specific */
+.rm-product-info {
+	display: flex;
+	gap: 15px;
+	padding: 15px;
+	background: #f9f9f9;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	margin-bottom: 20px;
+}
+
+.rm-product-image img {
+	max-width: 80px;
+	height: auto;
+	border-radius: 4px;
+}
+
+.rm-product-details {
+	flex: 1;
+}
+
+.rm-product-name {
+	margin: 0 0 8px;
+	font-size: 18px;
+	color: #23282d;
+}
+
+.rm-product-meta {
+	display: flex;
+	gap: 15px;
+	align-items: center;
+	font-size: 14px;
+	color: #646970;
+}
+
+.rm-product-base-price {
+	font-weight: 600;
+	color: #23282d;
+}
+
+.rm-product-wc-link {
+	text-decoration: none;
+	color: #2271b1;
+}
+
+.rm-product-wc-link:hover {
+	color: #135e96;
+}
+
+/* Region Assignment */
+.rm-regions-assignment {
+	max-height: 400px;
+	overflow-y: auto;
+	padding-right: 5px;
+}
+
+.rm-region-item {
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	margin-bottom: 15px;
+	overflow: hidden;
+}
+
+.rm-region-header {
+	background: #f9f9f9;
+	padding: 12px 15px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.rm-region-header label {
+	margin: 0;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.rm-region-pricing {
+	padding: 15px;
+	background: #fff;
+}
+
+.rm-price-field {
+	margin-bottom: 12px;
+}
+
+.rm-price-field:last-child {
+	margin-bottom: 0;
+}
+
+.rm-price-field label {
+	display: block;
+	font-size: 13px;
+	font-weight: 600;
+	margin-bottom: 5px;
+	color: #23282d;
+}
+
+.rm-price-field input {
+	width: 100%;
+	padding: 8px 12px;
+	border: 1px solid #8c8f94;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.rm-price-field input:focus {
+	border-color: #2271b1;
+	outline: none;
+	box-shadow: 0 0 0 1px #2271b1;
+}
+
+.rm-variation-option {
+	margin-top: 15px;
+	padding-top: 15px;
+	border-top: 1px solid #dcdcde;
+}
+
+.rm-variation-option label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+/* Bulk Assign Modal */
+.rm-bulk-info {
+	background: #f0f6fc;
+	border: 1px solid #c3d9f1;
+	padding: 12px 15px;
+	border-radius: 4px;
+	margin-bottom: 20px;
+}
+
+.rm-bulk-count {
+	margin: 0;
+	font-size: 14px;
+	color: #135e96;
+	font-weight: 600;
+}
+
+.rm-bulk-action-options {
+	background: #f9f9f9;
+	padding: 15px;
+	border-radius: 4px;
+	margin-top: 15px;
+}
+
+.rm-bulk-price-fields {
+	background: #fff;
+	padding: 15px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	margin-top: 10px;
+}
+
+/* Modal Overlay */
+.rm-modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: -1;
+}
+
+.rm-modal-content {
+	position: relative;
+	width: 90%;
+	max-width: 800px;
+	margin: 50px auto;
+	background: #fff;
+	border-radius: 4px;
+	box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+	z-index: 1;
+}
+
+/* ========================================
    Responsive Styles
    ======================================== */
 

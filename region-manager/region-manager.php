@@ -77,6 +77,7 @@ require RM_PLUGIN_DIR . 'includes/class-rm-license.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-admin.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-settings.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-dashboard.php';
+require RM_PLUGIN_DIR . 'admin/class-rm-products.php';
 
 /**
  * Main Region Manager Class.
