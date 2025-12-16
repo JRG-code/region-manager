@@ -1,0 +1,259 @@
+/**
+ * Region Manager Admin Styles
+ *
+ * @package    RegionManager
+ * @subpackage RegionManager/admin/css
+ * @since      1.0.0
+ */
+
+/* ========================================
+   General Admin Styles
+   ======================================== */
+
+.rm-admin-wrap {
+	max-width: 1200px;
+	margin: 20px 0;
+}
+
+.rm-admin-wrap h1 {
+	margin-bottom: 20px;
+}
+
+/* ========================================
+   Dashboard Styles
+   ======================================== */
+
+.rm-dashboard {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.rm-dashboard p {
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+/* ========================================
+   Regions & Countries Styles
+   ======================================== */
+
+.rm-regions,
+.rm-countries {
+	background: #fff;
+	border: 1px solid #ccd0d4;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.rm-table-wrapper {
+	overflow-x: auto;
+	margin-top: 20px;
+}
+
+.rm-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.rm-table th,
+.rm-table td {
+	padding: 12px;
+	text-align: left;
+	border-bottom: 1px solid #e5e5e5;
+}
+
+.rm-table th {
+	background-color: #f9f9f9;
+	font-weight: 600;
+	color: #23282d;
+}
+
+.rm-table tbody tr:hover {
+	background-color: #f9f9f9;
+}
+
+.rm-table .actions {
+	white-space: nowrap;
+}
+
+.rm-table .actions a {
+	margin-right: 10px;
+	text-decoration: none;
+}
+
+/* ========================================
+   Form Styles
+   ======================================== */
+
+.rm-admin-wrap .form-table th {
+	padding: 20px 10px 20px 0;
+	width: 200px;
+}
+
+.rm-admin-wrap .form-table td {
+	padding: 20px 10px;
+}
+
+.rm-admin-wrap .form-table input[type="text"],
+.rm-admin-wrap .form-table input[type="number"],
+.rm-admin-wrap .form-table select {
+	width: 100%;
+	max-width: 400px;
+}
+
+.rm-admin-wrap .form-table .description {
+	margin-top: 5px;
+	color: #646970;
+	font-style: italic;
+}
+
+/* ========================================
+   Button Styles
+   ======================================== */
+
+.rm-button-primary {
+	background-color: #2271b1;
+	border-color: #2271b1;
+	color: #fff;
+	padding: 8px 16px;
+	text-decoration: none;
+	border-radius: 3px;
+	display: inline-block;
+	cursor: pointer;
+}
+
+.rm-button-primary:hover {
+	background-color: #135e96;
+	border-color: #135e96;
+	color: #fff;
+}
+
+.rm-button-secondary {
+	background-color: #f6f7f7;
+	border: 1px solid #2271b1;
+	color: #2271b1;
+	padding: 8px 16px;
+	text-decoration: none;
+	border-radius: 3px;
+	display: inline-block;
+	cursor: pointer;
+}
+
+.rm-button-secondary:hover {
+	background-color: #f0f0f1;
+	color: #135e96;
+	border-color: #135e96;
+}
+
+.rm-button-delete {
+	color: #b32d2e;
+	text-decoration: none;
+}
+
+.rm-button-delete:hover {
+	color: #8a2424;
+}
+
+/* ========================================
+   Status Badge Styles
+   ======================================== */
+
+.rm-status-badge {
+	display: inline-block;
+	padding: 4px 10px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
+.rm-status-badge.active {
+	background-color: #d4edda;
+	color: #155724;
+}
+
+.rm-status-badge.inactive {
+	background-color: #f8d7da;
+	color: #721c24;
+}
+
+/* ========================================
+   Notice Styles
+   ======================================== */
+
+.rm-notice {
+	padding: 12px 15px;
+	margin: 20px 0;
+	border-left: 4px solid;
+	background: #fff;
+}
+
+.rm-notice.success {
+	border-left-color: #46b450;
+	background-color: #ecf7ed;
+}
+
+.rm-notice.error {
+	border-left-color: #dc3232;
+	background-color: #f8d7da;
+}
+
+.rm-notice.warning {
+	border-left-color: #ffb900;
+	background-color: #fff8e5;
+}
+
+.rm-notice.info {
+	border-left-color: #00a0d2;
+	background-color: #e5f5fa;
+}
+
+/* ========================================
+   Loading Spinner
+   ======================================== */
+
+.rm-spinner {
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	border: 3px solid #f3f3f3;
+	border-top: 3px solid #2271b1;
+	border-radius: 50%;
+	animation: rm-spin 1s linear infinite;
+}
+
+@keyframes rm-spin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+/* ========================================
+   Responsive Styles
+   ======================================== */
+
+@media screen and (max-width: 782px) {
+	.rm-admin-wrap .form-table th,
+	.rm-admin-wrap .form-table td {
+		display: block;
+		width: 100%;
+		padding: 10px 0;
+	}
+
+	.rm-admin-wrap .form-table th {
+		padding-bottom: 5px;
+	}
+
+	.rm-table th,
+	.rm-table td {
+		padding: 8px;
+		font-size: 13px;
+	}
+}
