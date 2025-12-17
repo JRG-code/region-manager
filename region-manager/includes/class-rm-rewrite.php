@@ -38,7 +38,7 @@ class RM_Rewrite {
 
 		// Register rewrite rules.
 		add_action( 'init', array( $this, 'register_rewrite_rules' ), 10 );
-		add_action( 'init', array( $this, 'add_query_vars' ) );
+		add_filter( 'query_vars', array( $this, 'add_query_vars' ) );
 
 		// Detect region from query.
 		add_action( 'template_redirect', array( $this, 'set_region_from_query' ), 1 );
