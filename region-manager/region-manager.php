@@ -302,11 +302,14 @@ final class Region_Manager {
 /**
  * Begins execution of the plugin.
  *
+ * Initializes the plugin after all plugins are loaded to ensure
+ * dependencies like WooCommerce are available.
+ *
  * @since 1.0.0
  */
 function run_region_manager() {
 	return Region_Manager::instance();
 }
 
-// Start the plugin.
-run_region_manager();
+// Start the plugin after all plugins are loaded.
+add_action( 'plugins_loaded', 'run_region_manager', 10 );

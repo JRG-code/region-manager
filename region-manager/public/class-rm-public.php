@@ -93,7 +93,7 @@ class RM_Public {
 
 		$region = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table_name} WHERE slug = %s AND is_active = 1",
+				"SELECT * FROM {$table_name} WHERE slug = %s AND status = 'active'",
 				$region_slug
 			),
 			ARRAY_A
