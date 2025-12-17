@@ -77,7 +77,6 @@ require RM_PLUGIN_DIR . 'includes/class-rm-license.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-order-status.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-woocommerce.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-rewrite.php';
-require RM_PLUGIN_DIR . 'includes/class-rm-widget-region-switcher.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-landing-page.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-menu-flag.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-admin.php';
@@ -87,6 +86,17 @@ require RM_PLUGIN_DIR . 'admin/class-rm-products.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-orders.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-customization.php';
 require RM_PLUGIN_DIR . 'public/class-rm-public.php';
+
+/**
+ * Load widget class after WordPress widgets are available.
+ */
+add_action(
+	'widgets_init',
+	function () {
+		require_once RM_PLUGIN_DIR . 'includes/class-rm-widget-region-switcher.php';
+		register_widget( 'RM_Widget_Region_Switcher' );
+	}
+);
 
 /**
  * Main Region Manager Class.
