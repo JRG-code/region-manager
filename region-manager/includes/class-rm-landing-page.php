@@ -104,7 +104,7 @@ class RM_Landing_Page {
 		$table_name = $wpdb->prefix . 'rm_regions';
 
 		$results = $wpdb->get_results(
-			"SELECT * FROM {$table_name} WHERE is_active = 1 ORDER BY name ASC",
+			"SELECT * FROM {$table_name} WHERE status = 'active' ORDER BY name ASC",
 			ARRAY_A
 		);
 

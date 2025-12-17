@@ -165,7 +165,7 @@ class RM_Menu_Flag {
 
 		$region = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table_name} WHERE slug = %s AND is_active = 1",
+				"SELECT * FROM {$table_name} WHERE slug = %s AND status = 'active'",
 				$region_slug
 			),
 			ARRAY_A
@@ -184,7 +184,7 @@ class RM_Menu_Flag {
 		$table_name = $wpdb->prefix . 'rm_regions';
 
 		$results = $wpdb->get_results(
-			"SELECT * FROM {$table_name} WHERE is_active = 1 ORDER BY name ASC",
+			"SELECT * FROM {$table_name} WHERE status = 'active' ORDER BY name ASC",
 			ARRAY_A
 		);
 
