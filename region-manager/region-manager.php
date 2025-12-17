@@ -75,6 +75,7 @@ require RM_PLUGIN_DIR . 'includes/class-rm-loader.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-i18n.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-license.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-order-status.php';
+require RM_PLUGIN_DIR . 'includes/class-rm-woocommerce.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-admin.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-settings.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-dashboard.php';
@@ -136,6 +137,7 @@ final class Region_Manager {
 			$this->load_dependencies();
 			$this->set_locale();
 			$this->define_admin_hooks();
+			$this->define_woocommerce_hooks();
 			$this->loader->run();
 		}
 	}
@@ -226,6 +228,17 @@ final class Region_Manager {
 		$plugin_settings->register_ajax_handlers();
 		$plugin_products->register_ajax_handlers();
 		$plugin_orders->register_ajax_handlers();
+	}
+
+	/**
+	 * Register all WooCommerce integration hooks.
+	 *
+	 * @since  1.0.0
+	 * @access private
+	 */
+	private function define_woocommerce_hooks() {
+		// Initialize WooCommerce integration.
+		$woocommerce = new RM_WooCommerce();
 	}
 
 	/**
