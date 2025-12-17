@@ -70,6 +70,27 @@ Perfect for international stores, multi-country operations, or businesses target
 - PHP 7.4 or higher
 - MySQL 5.6 or higher
 
+## Creating the Plugin ZIP for WordPress
+
+If you're downloading this from GitHub and want to install it on WordPress:
+
+### Method 1: GitHub Desktop (Recommended)
+1. Open the repository in GitHub Desktop
+2. Click "Show in Explorer" / "Show in Finder"
+3. Find the **`region-manager`** folder (NOT the root folder)
+4. Right-click on the **`region-manager`** folder
+5. Select "Compress" / "Send to > Compressed (zipped) folder"
+6. Upload the resulting `region-manager.zip` to WordPress
+
+### Method 2: Manual Download
+1. Download the repository
+2. Open the downloaded folder
+3. Find the **`region-manager`** folder inside
+4. Compress ONLY that folder (right-click → Compress)
+5. Upload to WordPress
+
+⚠️ **Important:** Always compress the `region-manager` folder itself, not its contents. The ZIP file should contain a single folder named `region-manager` with all files inside.
+
 ## Installation
 
 ### Automatic Installation
