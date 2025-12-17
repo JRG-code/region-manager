@@ -78,11 +78,15 @@ require RM_PLUGIN_DIR . 'includes/class-rm-order-status.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-woocommerce.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-rewrite.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-widget-region-switcher.php';
+require RM_PLUGIN_DIR . 'includes/class-rm-landing-page.php';
+require RM_PLUGIN_DIR . 'includes/class-rm-menu-flag.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-admin.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-settings.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-dashboard.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-products.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-orders.php';
+require RM_PLUGIN_DIR . 'admin/class-rm-customization.php';
+require RM_PLUGIN_DIR . 'public/class-rm-public.php';
 
 /**
  * Main Region Manager Class.
@@ -139,6 +143,7 @@ final class Region_Manager {
 			$this->load_dependencies();
 			$this->set_locale();
 			$this->define_admin_hooks();
+			$this->define_public_hooks();
 			$this->define_woocommerce_hooks();
 			$this->loader->run();
 		}
@@ -214,12 +219,13 @@ final class Region_Manager {
 	 * @access private
 	 */
 	private function define_admin_hooks() {
-		$plugin_admin    = new RM_Admin();
-		$plugin_license  = RM_License::get_instance();
-		$plugin_settings = new RM_Settings();
-		$plugin_products = new RM_Products();
-		$plugin_orders   = new RM_Orders();
-		$order_status    = new RM_Order_Status();
+		$plugin_admin         = new RM_Admin();
+		$plugin_license       = RM_License::get_instance();
+		$plugin_settings      = new RM_Settings();
+		$plugin_products      = new RM_Products();
+		$plugin_orders        = new RM_Orders();
+		$plugin_customization = new RM_Customization( 'region-manager', RM_VERSION );
+		$order_status         = new RM_Order_Status();
 
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_admin_menu' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
@@ -230,6 +236,32 @@ final class Region_Manager {
 		$plugin_settings->register_ajax_handlers();
 		$plugin_products->register_ajax_handlers();
 		$plugin_orders->register_ajax_handlers();
+
+		// Customization AJAX handlers.
+		$this->loader->add_action( 'wp_ajax_rm_save_landing_page_settings', $plugin_customization, 'save_landing_page_settings' );
+		$this->loader->add_action( 'wp_ajax_rm_save_menu_flag_settings', $plugin_customization, 'save_menu_flag_settings' );
+		$this->loader->add_action( 'wp_ajax_rm_save_translator_settings', $plugin_customization, 'save_translator_settings' );
+	}
+
+	/**
+	 * Register all public-facing hooks.
+	 *
+	 * @since  1.0.0
+	 * @access private
+	 */
+	private function define_public_hooks() {
+		$plugin_public = new RM_Public( 'region-manager', RM_VERSION );
+
+		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
+		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
+
+		// Public AJAX handlers.
+		$this->loader->add_action( 'wp_ajax_rm_set_region', $plugin_public, 'ajax_set_region' );
+		$this->loader->add_action( 'wp_ajax_nopriv_rm_set_region', $plugin_public, 'ajax_set_region' );
+
+		// Initialize Landing Page and Menu Flag.
+		RM_Landing_Page::get_instance();
+		RM_Menu_Flag::get_instance();
 	}
 
 	/**
