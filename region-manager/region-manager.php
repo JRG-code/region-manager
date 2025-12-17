@@ -74,10 +74,12 @@ register_deactivation_hook( __FILE__, 'deactivate_region_manager' );
 require RM_PLUGIN_DIR . 'includes/class-rm-loader.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-i18n.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-license.php';
+require RM_PLUGIN_DIR . 'includes/class-rm-order-status.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-admin.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-settings.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-dashboard.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-products.php';
+require RM_PLUGIN_DIR . 'admin/class-rm-orders.php';
 
 /**
  * Main Region Manager Class.
@@ -208,13 +210,22 @@ final class Region_Manager {
 	 * @access private
 	 */
 	private function define_admin_hooks() {
-		$plugin_admin = new RM_Admin();
-		$plugin_license = RM_License::get_instance();
+		$plugin_admin    = new RM_Admin();
+		$plugin_license  = RM_License::get_instance();
+		$plugin_settings = new RM_Settings();
+		$plugin_products = new RM_Products();
+		$plugin_orders   = new RM_Orders();
+		$order_status    = new RM_Order_Status();
 
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_admin_menu' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 		$this->loader->add_action( 'admin_notices', $plugin_license, 'show_limit_notice' );
+
+		// Register AJAX handlers.
+		$plugin_settings->register_ajax_handlers();
+		$plugin_products->register_ajax_handlers();
+		$plugin_orders->register_ajax_handlers();
 	}
 
 	/**
