@@ -70,34 +70,6 @@ Perfect for international stores, multi-country operations, or businesses target
 - PHP 7.4 or higher
 - MySQL 5.6 or higher
 
-## Building the Plugin
-
-If you're developing or contributing to this plugin, use the build script to create a properly structured ZIP file for WordPress installation:
-
-```bash
-./build-plugin-zip.sh
-```
-
-This will create a ZIP file in the `dist/` directory with the correct structure:
-- ✓ `region-manager/region-manager.php` (main plugin file in root)
-- ✓ `region-manager/admin/` (admin functionality)
-- ✓ `region-manager/includes/` (core classes)
-- ✓ `region-manager/public/` (frontend functionality)
-- ✓ All other required files and folders
-
-**Important:** Always use this build script to generate the release ZIP. Simply zipping the `region-manager/` folder manually ensures WordPress will find the plugin file correctly.
-
-### Manual Build (Without Script)
-
-If you prefer to create the ZIP manually:
-
-1. Navigate to the repository root
-2. Create a ZIP of the `region-manager/` folder:
-   ```bash
-   zip -r region-manager-1.0.0.zip region-manager/
-   ```
-3. Ensure the ZIP structure shows `region-manager/region-manager.php` at the root level when extracted
-
 ## Installation
 
 ### Automatic Installation
