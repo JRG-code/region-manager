@@ -242,8 +242,7 @@ final class Region_Manager {
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 		$this->loader->add_action( 'admin_notices', $plugin_license, 'show_limit_notice' );
 
-		// Register AJAX handlers.
-		$plugin_settings->register_ajax_handlers();
+		// Register AJAX handlers for products and orders.
 		$plugin_products->register_ajax_handlers();
 		$plugin_orders->register_ajax_handlers();
 
