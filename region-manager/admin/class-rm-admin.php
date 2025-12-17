@@ -37,6 +37,7 @@ class RM_Admin {
 			'rm-countries',
 			'rm-products',
 			'rm-orders',
+			'rm-customization',
 			'rm-settings',
 		);
 	}
@@ -106,6 +107,16 @@ class RM_Admin {
 			'manage_woocommerce',
 			'rm-orders',
 			array( $this, 'display_orders_page' )
+		);
+
+		// Customization submenu.
+		add_submenu_page(
+			'region-manager',
+			esc_html__( 'Customization', 'region-manager' ),
+			esc_html__( 'Customization', 'region-manager' ),
+			'manage_options',
+			'rm-customization',
+			array( $this, 'display_customization_page' )
 		);
 
 		// Settings submenu.
@@ -185,6 +196,16 @@ class RM_Admin {
 	public function display_orders_page() {
 		$orders = new RM_Orders();
 		$orders->display();
+	}
+
+	/**
+	 * Display the customization page.
+	 *
+	 * @since 1.0.0
+	 */
+	public function display_customization_page() {
+		$customization = new RM_Customization( 'region-manager', RM_VERSION );
+		$customization->display_customization_page();
 	}
 
 	/**
