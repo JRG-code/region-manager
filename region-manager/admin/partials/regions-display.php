@@ -144,43 +144,42 @@ $license_info = $license->get_license_info();
 	</div>
 
 	<!-- Region Modal -->
-	<div id="rm-region-modal" class="rm-modal" style="display: none;">
-		<div class="rm-modal-overlay"></div>
-		<div class="rm-modal-content">
-			<div class="rm-modal-header">
-				<h2 id="rm-modal-title"><?php esc_html_e( 'Add New Region', 'region-manager' ); ?></h2>
-				<button type="button" class="rm-modal-close">&times;</button>
+	<div id="rm-region-modal" class="rm-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100000; background: rgba(0,0,0,0.7);">
+		<div class="rm-modal-content" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; border-radius: 4px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+			<div class="rm-modal-header" style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+				<h2 id="rm-modal-title" style="margin: 0;"><?php esc_html_e( 'Add New Region', 'region-manager' ); ?></h2>
+				<button type="button" class="rm-modal-close" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #666; line-height: 1; padding: 0; width: 30px; height: 30px;">&times;</button>
 			</div>
-			<div class="rm-modal-body">
+			<div class="rm-modal-body" style="padding: 20px;">
 				<form id="rm-region-form">
-					<input type="hidden" id="region-id" name="region_id" value="">
+					<input type="hidden" id="region_id" name="region_id" value="">
 
 					<table class="form-table" role="presentation">
 						<tbody>
 							<tr>
-								<th scope="row">
-									<label for="region-name"><?php esc_html_e( 'Region Name', 'region-manager' ); ?> <span class="required">*</span></label>
+								<th scope="row" style="width: 25%;">
+									<label for="region_name"><?php esc_html_e( 'Region Name', 'region-manager' ); ?> <span class="required" style="color: #d63638;">*</span></label>
 								</th>
 								<td>
-									<input type="text" id="region-name" name="region_name" class="regular-text" required>
+									<input type="text" id="region_name" name="region_name" class="regular-text" required>
 									<p class="description"><?php esc_html_e( 'E.g., "Europe", "North America", "Asia Pacific"', 'region-manager' ); ?></p>
 								</td>
 							</tr>
 							<tr>
 								<th scope="row">
-									<label for="region-slug"><?php esc_html_e( 'URL Slug', 'region-manager' ); ?> <span class="required">*</span></label>
+									<label for="region_slug"><?php esc_html_e( 'URL Slug', 'region-manager' ); ?> <span class="required" style="color: #d63638;">*</span></label>
 								</th>
 								<td>
-									<input type="text" id="region-slug" name="region_slug" class="regular-text" required pattern="[a-z0-9\-]+">
+									<input type="text" id="region_slug" name="region_slug" class="regular-text" required pattern="[a-z0-9\-]+">
 									<p class="description"><?php esc_html_e( 'Used in URLs. Lowercase letters, numbers, and hyphens only.', 'region-manager' ); ?></p>
 								</td>
 							</tr>
 							<tr>
 								<th scope="row">
-									<label for="region-status"><?php esc_html_e( 'Status', 'region-manager' ); ?></label>
+									<label for="region_status"><?php esc_html_e( 'Status', 'region-manager' ); ?></label>
 								</th>
 								<td>
-									<select id="region-status" name="region_status" class="regular-text">
+									<select id="region_status" name="region_status" class="regular-text">
 										<option value="active"><?php esc_html_e( 'Active', 'region-manager' ); ?></option>
 										<option value="inactive"><?php esc_html_e( 'Inactive', 'region-manager' ); ?></option>
 									</select>
@@ -188,29 +187,71 @@ $license_info = $license->get_license_info();
 							</tr>
 							<tr>
 								<th scope="row">
-									<label for="region-countries"><?php esc_html_e( 'Countries', 'region-manager' ); ?></label>
+									<label for="country-select"><?php esc_html_e( 'Add Countries', 'region-manager' ); ?></label>
 								</th>
 								<td>
-									<select id="region-countries" name="region_countries[]" multiple class="regular-text" style="height: 200px;">
+									<select id="country-select" class="regular-text" style="width: 100%;">
+										<option value=""><?php esc_html_e( 'Select a country...', 'region-manager' ); ?></option>
 										<?php
 										$countries_obj = new WC_Countries();
-										$countries     = $countries_obj->get_countries();
-										foreach ( $countries as $code => $name ) {
-											echo '<option value="' . esc_attr( $code ) . '">' . esc_html( $name ) . '</option>';
+										$all_countries = $countries_obj->get_countries();
+										foreach ( $all_countries as $code => $name ) {
+											echo '<option value="' . esc_attr( $code ) . '">' . esc_html( $name ) . ' (' . esc_html( $code ) . ')</option>';
 										}
 										?>
 									</select>
-									<p class="description"><?php esc_html_e( 'Hold Ctrl (Cmd on Mac) to select multiple countries.', 'region-manager' ); ?></p>
+									<p class="description"><?php esc_html_e( 'Select countries one at a time to add to this region.', 'region-manager' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
 					</table>
+
+					<div id="countries-section" style="margin-top: 20px;">
+						<h3><?php esc_html_e( 'Selected Countries', 'region-manager' ); ?></h3>
+						<table class="wp-list-table widefat" style="margin-top: 10px;">
+							<thead>
+								<tr>
+									<th><?php esc_html_e( 'Country', 'region-manager' ); ?></th>
+									<th><?php esc_html_e( 'URL Slug', 'region-manager' ); ?></th>
+									<th><?php esc_html_e( 'Language', 'region-manager' ); ?></th>
+									<th style="text-align: center;"><?php esc_html_e( 'Default', 'region-manager' ); ?></th>
+									<th style="text-align: center;"><?php esc_html_e( 'Action', 'region-manager' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="selected-countries">
+								<!-- Countries will be added here by JavaScript -->
+							</tbody>
+						</table>
+					</div>
 				</form>
 			</div>
-			<div class="rm-modal-footer">
-				<button type="button" class="button button-secondary rm-modal-close"><?php esc_html_e( 'Cancel', 'region-manager' ); ?></button>
+			<div class="rm-modal-footer" style="padding: 15px 20px; border-top: 1px solid #ddd; text-align: right; background: #f9f9f9;">
+				<button type="button" class="button button-secondary rm-modal-close" style="margin-right: 10px;"><?php esc_html_e( 'Cancel', 'region-manager' ); ?></button>
 				<button type="button" class="button button-primary" id="rm-save-region"><?php esc_html_e( 'Save Region', 'region-manager' ); ?></button>
 			</div>
 		</div>
 	</div>
 </div>
+
+<script type="text/javascript">
+	// Store countries data for JavaScript
+	var rmCountries = <?php echo wp_json_encode( $all_countries ); ?>;
+
+	// Language codes
+	var rmLanguageCodes = {
+		'en_US': 'English (US)',
+		'en_GB': 'English (UK)',
+		'es_ES': 'Español',
+		'pt_PT': 'Português',
+		'pt_BR': 'Português (Brasil)',
+		'fr_FR': 'Français',
+		'de_DE': 'Deutsch',
+		'it_IT': 'Italiano',
+		'nl_NL': 'Nederlands',
+		'pl_PL': 'Polski',
+		'ru_RU': 'Русский',
+		'ja': 'Japanese',
+		'zh_CN': 'Chinese (Simplified)',
+		'ko_KR': 'Korean'
+	};
+</script>
