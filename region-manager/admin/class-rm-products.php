@@ -347,10 +347,15 @@ class RM_Products {
 		}
 
 		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
-		$regions    = isset( $_POST['regions'] ) ? json_decode( stripslashes( $_POST['regions'] ), true ) : array();
+		$regions    = isset( $_POST['regions'] ) ? json_decode( wp_unslash( $_POST['regions'] ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
 		if ( ! $product_id ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid product ID.', 'region-manager' ) ) );
+		}
+
+		// Ensure $regions is an array (json_decode can return null on invalid JSON).
+		if ( ! is_array( $regions ) ) {
+			$regions = array();
 		}
 
 		// Get all existing regions.
