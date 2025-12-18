@@ -176,6 +176,11 @@ class RM_Settings {
 		$status    = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'active';
 		$countries = isset( $_POST['countries'] ) ? json_decode( wp_unslash( $_POST['countries'] ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
+		// Ensure $countries is an array (json_decode can return null on invalid JSON).
+		if ( ! is_array( $countries ) ) {
+			$countries = array();
+		}
+
 		// Validate.
 		if ( empty( $name ) ) {
 			wp_send_json_error( array( 'message' => __( 'Region name is required.', 'region-manager' ) ) );
