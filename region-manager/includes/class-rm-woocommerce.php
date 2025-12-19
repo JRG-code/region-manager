@@ -612,6 +612,25 @@ class RM_WooCommerce {
 	public function get_default_region() {
 		global $wpdb;
 
+		// Check if a default region is configured in settings.
+		$default_region_id = get_option( 'rm_default_region_id', null );
+
+		if ( $default_region_id ) {
+			$region = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT id, slug, name FROM {$wpdb->prefix}rm_regions WHERE id = %d AND status = 'active' LIMIT 1",
+					$default_region_id
+				),
+				ARRAY_A
+			);
+
+			// If the configured default is valid, return it.
+			if ( $region ) {
+				return $region;
+			}
+		}
+
+		// Fall back to the first active region if no default is set or the default is invalid.
 		$region = $wpdb->get_row(
 			"SELECT id, slug, name FROM {$wpdb->prefix}rm_regions WHERE status = 'active' ORDER BY id ASC LIMIT 1",
 			ARRAY_A

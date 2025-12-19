@@ -17,6 +17,11 @@ $extra_charge          = get_option( 'rm_extra_charge', 0 );
 $charge_type           = get_option( 'rm_charge_type', 'per_order' );
 $block_message         = get_option( 'rm_block_message', __( 'Sorry, this product cannot be shipped to your location from this store region.', 'region-manager' ) );
 $geoip_fallback        = get_option( 'rm_geoip_fallback', 0 );
+$default_region_id     = get_option( 'rm_default_region_id', null );
+
+// Get all active regions for the dropdown.
+$settings       = new RM_Settings();
+$active_regions = $settings->get_regions();
 ?>
 
 <div class="rm-checkout-tab">
@@ -110,6 +115,22 @@ $geoip_fallback        = get_option( 'rm_geoip_fallback', 0 );
 
 			<table class="form-table">
 				<tbody>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Default Region', 'region-manager' ); ?></th>
+						<td>
+							<select name="default_region_id" id="default_region_id" class="regular-text">
+								<option value=""><?php esc_html_e( '-- Select Default Region --', 'region-manager' ); ?></option>
+								<?php foreach ( $active_regions as $region ) : ?>
+									<option value="<?php echo esc_attr( $region->id ); ?>" <?php selected( $default_region_id, $region->id ); ?>>
+										<?php echo esc_html( $region->name . ' (' . $region->slug . ')' ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+							<p class="description">
+								<?php esc_html_e( 'This region will be used as default when no region is detected from the URL or session. Useful for visitors landing on your homepage without a region prefix.', 'region-manager' ); ?>
+							</p>
+						</td>
+					</tr>
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Detection Method', 'region-manager' ); ?></th>
 						<td>
