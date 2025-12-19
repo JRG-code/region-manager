@@ -388,6 +388,7 @@ class RM_Settings {
 		$charge_type           = isset( $_POST['charge_type'] ) ? sanitize_text_field( wp_unslash( $_POST['charge_type'] ) ) : 'per_order';
 		$block_message         = isset( $_POST['block_message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['block_message'] ) ) : '';
 		$geoip_fallback        = isset( $_POST['geoip_fallback'] ) ? 1 : 0;
+		$default_region_id     = isset( $_POST['default_region_id'] ) && '' !== $_POST['default_region_id'] ? absint( $_POST['default_region_id'] ) : null;
 
 		// Save settings.
 		update_option( 'rm_cross_region_purchase', $cross_region_purchase );
@@ -395,6 +396,13 @@ class RM_Settings {
 		update_option( 'rm_charge_type', $charge_type );
 		update_option( 'rm_block_message', $block_message );
 		update_option( 'rm_geoip_fallback', $geoip_fallback );
+
+		// Save default region (delete option if null to allow fallback to first region).
+		if ( null === $default_region_id ) {
+			delete_option( 'rm_default_region_id' );
+		} else {
+			update_option( 'rm_default_region_id', $default_region_id );
+		}
 
 		wp_send_json_success( array( 'message' => __( 'Checkout settings saved successfully.', 'region-manager' ) ) );
 	}

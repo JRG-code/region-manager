@@ -12,6 +12,11 @@ $landing_page_options = $customization->get_landing_page_settings();
 $menu_flag_options    = $customization->get_menu_flag_settings();
 $translator_options   = $customization->get_translator_settings();
 $menu_locations       = $customization->get_menu_locations();
+
+// Include plugin.php for is_plugin_active() function.
+if ( ! function_exists( 'is_plugin_active' ) ) {
+	require_once ABSPATH . 'wp-admin/includes/plugin.php';
+}
 ?>
 
 <div class="wrap rm-customization-page">
