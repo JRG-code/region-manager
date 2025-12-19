@@ -50,6 +50,25 @@ define( 'RM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'RM_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 /**
+ * Initialize Plugin Update Checker for GitHub updates.
+ */
+require RM_PLUGIN_DIR . 'plugin-update-checker/plugin-update-checker.php';
+use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+
+$rm_update_checker = PucFactory::buildUpdateChecker(
+	'https://github.com/JRG-code/region-manager/',
+	__FILE__,
+	'region-manager'
+);
+
+// Set the branch that contains the stable release.
+$rm_update_checker->setBranch( 'main' );
+
+// Optional: Enable update notifications from GitHub releases.
+// Uncomment the line below if you want to use GitHub Releases for updates.
+// $rm_update_checker->getVcsApi()->enableReleaseAssets();
+
+/**
  * The code that runs during plugin activation.
  */
 function activate_region_manager() {
