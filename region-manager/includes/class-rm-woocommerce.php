@@ -385,11 +385,11 @@ class RM_WooCommerce {
 
 		if ( ! $is_in_region ) {
 			// Get cross-region policy from settings.
-			$cross_region_policy = get_option( 'rm_cross_region_policy', 'allow' );
+			$cross_region_policy = get_option( 'rm_cross_region_purchase', 'allow' );
 
 			if ( 'block' === $cross_region_policy ) {
 				// Block checkout with error message.
-				$error_message = get_option( 'rm_cross_region_error_message', __( 'We do not ship to your country from this region. Please select the appropriate regional store.', 'region-manager' ) );
+				$error_message = get_option( 'rm_block_message', __( 'We do not ship to your country from this region. Please select the appropriate regional store.', 'region-manager' ) );
 				wc_add_notice( $error_message, 'error' );
 			}
 		}
@@ -422,18 +422,37 @@ class RM_WooCommerce {
 
 		if ( ! $is_in_region ) {
 			// Get cross-region policy.
-			$cross_region_policy = get_option( 'rm_cross_region_policy', 'allow' );
+			$cross_region_policy = get_option( 'rm_cross_region_purchase', 'allow' );
 
 			if ( 'charge' === $cross_region_policy ) {
 				// Add extra charge.
-				$extra_charge = floatval( get_option( 'rm_cross_region_charge', 0 ) );
+				$extra_charge = floatval( get_option( 'rm_extra_charge', 0 ) );
+				$charge_type  = get_option( 'rm_charge_type', 'per_order' );
 
 				if ( $extra_charge > 0 ) {
-					WC()->cart->add_fee(
-						__( 'International Shipping Surcharge', 'region-manager' ),
-						$extra_charge,
-						true
-					);
+					if ( 'per_product' === $charge_type ) {
+						// Apply fee per product in cart.
+						$product_count = 0;
+						foreach ( WC()->cart->get_cart() as $cart_item ) {
+							$product_count += $cart_item['quantity'];
+						}
+
+						if ( $product_count > 0 ) {
+							$total_fee = $extra_charge * $product_count;
+							WC()->cart->add_fee(
+								__( 'Cross-Region Shipping Fee', 'region-manager' ),
+								$total_fee,
+								true
+							);
+						}
+					} else {
+						// Apply fee once per order.
+						WC()->cart->add_fee(
+							__( 'Cross-Region Shipping Fee', 'region-manager' ),
+							$extra_charge,
+							true
+						);
+					}
 				}
 			}
 		}
@@ -478,11 +497,23 @@ class RM_WooCommerce {
 			$order->update_meta_data( '_rm_cross_region_order', 'yes' );
 
 			// Get cross-region policy.
-			$cross_region_policy = get_option( 'rm_cross_region_policy', 'allow' );
+			$cross_region_policy = get_option( 'rm_cross_region_purchase', 'allow' );
 			if ( 'charge' === $cross_region_policy ) {
-				$extra_charge = floatval( get_option( 'rm_cross_region_charge', 0 ) );
+				$extra_charge = floatval( get_option( 'rm_extra_charge', 0 ) );
+				$charge_type  = get_option( 'rm_charge_type', 'per_order' );
+
 				if ( $extra_charge > 0 ) {
-					$order->update_meta_data( '_rm_cross_region_fee', $extra_charge );
+					// Calculate actual fee based on charge type.
+					if ( 'per_product' === $charge_type ) {
+						$product_count = 0;
+						foreach ( $order->get_items() as $item ) {
+							$product_count += $item->get_quantity();
+						}
+						$total_fee = $extra_charge * $product_count;
+						$order->update_meta_data( '_rm_cross_region_fee', $total_fee );
+					} else {
+						$order->update_meta_data( '_rm_cross_region_fee', $extra_charge );
+					}
 				}
 			}
 		}
