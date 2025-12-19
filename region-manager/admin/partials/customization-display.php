@@ -323,7 +323,7 @@ if ( ! function_exists( 'is_plugin_active' ) ) {
 
 			var formData = {
 				action: 'rm_save_landing_page_settings',
-				nonce: rmAjax.nonce,
+				nonce: rmAdmin.nonce,
 				enabled: $('#landing-page-enabled').is(':checked'),
 				template: $('#landing-page-template').val(),
 				title: $('#landing-page-title').val(),
@@ -349,7 +349,7 @@ if ( ! function_exists( 'is_plugin_active' ) ) {
 
 			var formData = {
 				action: 'rm_save_menu_flag_settings',
-				nonce: rmAjax.nonce,
+				nonce: rmAdmin.nonce,
 				enabled: $('#menu-flag-enabled').is(':checked'),
 				position: $('#menu-flag-position').val(),
 				menu_location: $('#menu-flag-menu-location').val(),
@@ -372,7 +372,7 @@ if ( ! function_exists( 'is_plugin_active' ) ) {
 
 			var formData = {
 				action: 'rm_save_translator_settings',
-				nonce: rmAjax.nonce,
+				nonce: rmAdmin.nonce,
 				enabled: $('#translator-enabled').is(':checked'),
 				plugin: $('#translator-plugin').val(),
 				sync_languages: $('#translator-sync-languages').is(':checked'),

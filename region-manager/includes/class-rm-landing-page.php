@@ -139,11 +139,11 @@ class RM_Landing_Page {
 	 */
 	public function get_region_countries( $region_id ) {
 		global $wpdb;
-		$table_name = $wpdb->prefix . 'rm_countries';
+		$table_name = $wpdb->prefix . 'rm_region_countries';
 
 		$results = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT code FROM {$table_name} WHERE region_id = %d",
+				"SELECT country_code FROM {$table_name} WHERE region_id = %d",
 				$region_id
 			)
 		);

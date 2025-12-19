@@ -49,7 +49,7 @@ class RM_Customization {
 	 * AJAX handler to save landing page settings.
 	 */
 	public function save_landing_page_settings() {
-		check_ajax_referer( 'rm_ajax_nonce', 'nonce' );
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
@@ -80,7 +80,7 @@ class RM_Customization {
 	 * AJAX handler to save menu flag settings.
 	 */
 	public function save_menu_flag_settings() {
-		check_ajax_referer( 'rm_ajax_nonce', 'nonce' );
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
@@ -105,7 +105,7 @@ class RM_Customization {
 	 * AJAX handler to save translator integration settings.
 	 */
 	public function save_translator_settings() {
-		check_ajax_referer( 'rm_ajax_nonce', 'nonce' );
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
