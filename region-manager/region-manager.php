@@ -11,7 +11,7 @@
  * Plugin Name:       Region Manager
  * Plugin URI:        https://datalab.com/region-manager
  * Description:       Manage WooCommerce products and pricing across multiple regions with country-specific settings.
- * Version:           0.1.0
+ * Version:           1.0.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Region Manager Team
@@ -32,7 +32,7 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Current plugin version.
  */
-define( 'RM_VERSION', '0.1.0' );
+define( 'RM_VERSION', '1.0.0' );
 
 /**
  * Plugin directory path.
