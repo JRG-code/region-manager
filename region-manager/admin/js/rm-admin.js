@@ -432,20 +432,39 @@
 				status: status,
 				countries: JSON.stringify( countries )
 			}, function( data ) {
+				// Show success feedback on button
+				$button.text( '✓ Saved!' ).css({
+					'background-color': '#00a32a',
+					'border-color': '#00a32a',
+					'color': '#fff'
+				});
+
+				// Show success notice
 				RegionManagerAdmin.showNotice( 'success', data.message );
-				RegionManager.closeModal();
+
+				// Close modal after short delay
+				setTimeout( function() {
+					RegionManager.closeModal();
+				}, 500 );
+
+				// Reload page after showing feedback
 				setTimeout( function() {
 					location.reload();
-				}, 1000 );
+				}, 1500 );
 			}, function( error ) {
-				$button.prop( 'disabled', false ).text( buttonText );
+				// Reset button on error
+				$button.prop( 'disabled', false ).text( buttonText ).css({
+					'background-color': '',
+					'border-color': '',
+					'color': ''
+				});
 
 				if ( error.upgrade_url ) {
 					if ( confirm( error.message + '\n\nUpgrade now?' ) ) {
 						window.location.href = error.upgrade_url;
 					}
 				} else {
-					alert( error.message || 'Failed to save region' );
+					RegionManagerAdmin.showNotice( 'error', error.message || 'Failed to save region' );
 				}
 			});
 		},

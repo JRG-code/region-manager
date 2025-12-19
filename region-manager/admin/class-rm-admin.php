@@ -149,14 +149,7 @@ class RM_Admin {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'region-manager' ) );
 		}
-		?>
-		<div class="wrap rm-admin-wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-			<div class="rm-regions">
-				<p><?php esc_html_e( 'Manage your regions here.', 'region-manager' ); ?></p>
-			</div>
-		</div>
-		<?php
+		include RM_PLUGIN_DIR . 'admin/partials/regions-display.php';
 	}
 
 	/**
@@ -168,14 +161,7 @@ class RM_Admin {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'region-manager' ) );
 		}
-		?>
-		<div class="wrap rm-admin-wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-			<div class="rm-countries">
-				<p><?php esc_html_e( 'Manage countries within regions.', 'region-manager' ); ?></p>
-			</div>
-		</div>
-		<?php
+		include RM_PLUGIN_DIR . 'admin/partials/countries-display.php';
 	}
 
 	/**

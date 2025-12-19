@@ -57,6 +57,17 @@ class RM_License {
 	const PRO_TIER_MAX_REGIONS = -1;
 
 	/**
+	 * Whitelisted premium domains.
+	 *
+	 * @var array
+	 * @since 1.0.0
+	 */
+	const PREMIUM_DOMAINS = array(
+		'thecouplesbrand.com',
+		'www.thecouplesbrand.com',
+	);
+
+	/**
 	 * Get singleton instance.
 	 *
 	 * @since  1.0.0
@@ -85,6 +96,11 @@ class RM_License {
 	 * @return string License status: 'free' or 'pro'
 	 */
 	public function get_license_status() {
+		// Check if current domain is whitelisted for premium.
+		if ( $this->is_premium_domain() ) {
+			return 'pro';
+		}
+
 		$status = get_option( self::LICENSE_STATUS_OPTION, 'free' );
 		return in_array( $status, array( 'free', 'pro' ), true ) ? $status : 'free';
 	}
@@ -97,6 +113,23 @@ class RM_License {
 	 */
 	public function is_pro() {
 		return 'pro' === $this->get_license_status();
+	}
+
+	/**
+	 * Check if the current domain is whitelisted for premium access.
+	 *
+	 * @since  1.0.0
+	 * @return bool True if domain is whitelisted, false otherwise.
+	 */
+	private function is_premium_domain() {
+		$site_url = home_url();
+		$host     = wp_parse_url( $site_url, PHP_URL_HOST );
+
+		if ( empty( $host ) ) {
+			return false;
+		}
+
+		return in_array( strtolower( $host ), self::PREMIUM_DOMAINS, true );
 	}
 
 	/**
