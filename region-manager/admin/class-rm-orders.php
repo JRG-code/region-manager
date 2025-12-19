@@ -181,12 +181,166 @@ class RM_Orders {
 		// Get orders.
 		$orders = wc_get_orders( $query_args );
 
-		$results = array();
+		// Batch load region data to avoid N+1 queries.
+		$region_ids = array();
+		$order_data = array();
 		foreach ( $orders as $order ) {
-			$results[] = $this->format_order_data( $order );
+			$region_id_for_order = $this->get_order_region( $order->get_id() );
+			if ( $region_id_for_order ) {
+				$region_ids[] = $region_id_for_order;
+			}
+			$order_data[ $order->get_id() ] = array(
+				'order'     => $order,
+				'region_id' => $region_id_for_order,
+			);
+		}
+
+		// Batch load all regions at once.
+		$regions_map = $this->get_regions_map( array_unique( $region_ids ) );
+
+		// Batch load cross-region status.
+		$cross_region_map = $this->get_cross_region_map( $order_data, $regions_map );
+
+		// Format order data with cached region info.
+		$results = array();
+		foreach ( $order_data as $order_id => $data ) {
+			$results[] = $this->format_order_data_optimized( $data['order'], $data['region_id'], $regions_map, $cross_region_map );
 		}
 
 		return $results;
+	}
+
+	/**
+	 * Batch load regions map.
+	 *
+	 * @param array $region_ids Array of region IDs.
+	 * @return array Map of region_id => region data.
+	 */
+	private function get_regions_map( $region_ids ) {
+		if ( empty( $region_ids ) ) {
+			return array();
+		}
+
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $region_ids ), '%d' ) );
+		$query        = $wpdb->prepare(
+			"SELECT id, name FROM {$wpdb->prefix}rm_regions WHERE id IN ($placeholders)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$region_ids
+		);
+		$regions = $wpdb->get_results( $query, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		$regions_map = array();
+		foreach ( $regions as $region ) {
+			$regions_map[ $region['id'] ] = $region;
+		}
+
+		return $regions_map;
+	}
+
+	/**
+	 * Batch check cross-region orders.
+	 *
+	 * @param array $order_data Array of order data.
+	 * @param array $regions_map Map of region data.
+	 * @return array Map of order_id => is_cross_region.
+	 */
+	private function get_cross_region_map( $order_data, $regions_map ) {
+		global $wpdb;
+		$cross_region_map = array();
+
+		// Build a query to check all region-country combinations at once.
+		$region_ids       = array();
+		$country_codes    = array();
+		$order_region_map = array();
+
+		foreach ( $order_data as $order_id => $data ) {
+			$order      = $data['order'];
+			$region_id  = $data['region_id'];
+			$country    = $order->get_shipping_country();
+
+			if ( $region_id && $country ) {
+				$region_ids[]                   = $region_id;
+				$country_codes[]                = $country;
+				$order_region_map[ $order_id ]  = array(
+					'region_id' => $region_id,
+					'country'   => $country,
+				);
+			}
+		}
+
+		if ( empty( $order_region_map ) ) {
+			return $cross_region_map;
+		}
+
+		// Get all region-country associations in one query.
+		$unique_regions   = array_unique( $region_ids );
+		$unique_countries = array_unique( $country_codes );
+
+		if ( ! empty( $unique_regions ) && ! empty( $unique_countries ) ) {
+			$region_placeholders  = implode( ',', array_fill( 0, count( $unique_regions ), '%d' ) );
+			$country_placeholders = implode( ',', array_fill( 0, count( $unique_countries ), '%s' ) );
+
+			$query = $wpdb->prepare(
+				"SELECT region_id, country_code FROM {$wpdb->prefix}rm_region_countries WHERE region_id IN ($region_placeholders) AND country_code IN ($country_placeholders)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				array_merge( $unique_regions, $unique_countries )
+			);
+
+			$region_countries = $wpdb->get_results( $query, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+			// Build a lookup map.
+			$region_country_lookup = array();
+			foreach ( $region_countries as $rc ) {
+				$region_country_lookup[ $rc['region_id'] . '_' . $rc['country_code'] ] = true;
+			}
+
+			// Check each order.
+			foreach ( $order_region_map as $order_id => $info ) {
+				$key = $info['region_id'] . '_' . $info['country'];
+				// If the combination is NOT in the lookup, it's cross-region.
+				$cross_region_map[ $order_id ] = ! isset( $region_country_lookup[ $key ] );
+			}
+		}
+
+		return $cross_region_map;
+	}
+
+	/**
+	 * Format order data for display (optimized version).
+	 *
+	 * @param WC_Order $order Order object.
+	 * @param int|null $region_id Region ID.
+	 * @param array    $regions_map Preloaded regions map.
+	 * @param array    $cross_region_map Preloaded cross-region status map.
+	 * @return array Formatted order data.
+	 */
+	private function format_order_data_optimized( $order, $region_id, $regions_map, $cross_region_map ) {
+		$region_name  = '';
+		$cross_region = false;
+
+		if ( $region_id && isset( $regions_map[ $region_id ] ) ) {
+			$region_name = $regions_map[ $region_id ]['name'];
+		}
+
+		if ( isset( $cross_region_map[ $order->get_id() ] ) ) {
+			$cross_region = $cross_region_map[ $order->get_id() ];
+		}
+
+		return array(
+			'id'               => $order->get_id(),
+			'order_number'     => $order->get_order_number(),
+			'date'             => $order->get_date_created()->format( 'Y-m-d H:i:s' ),
+			'customer_name'    => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+			'customer_country' => $order->get_billing_country(),
+			'shipping_country' => $order->get_shipping_country(),
+			'region_id'        => $region_id,
+			'region_name'      => $region_name,
+			'items_count'      => $order->get_item_count(),
+			'total'            => $order->get_total(),
+			'currency'         => $order->get_currency(),
+			'status'           => $order->get_status(),
+			'cross_region'     => $cross_region,
+			'edit_url'         => $order->get_edit_order_url(),
+		);
 	}
 
 	/**
