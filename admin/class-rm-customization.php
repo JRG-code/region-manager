@@ -77,6 +77,106 @@ class RM_Customization {
 	}
 
 	/**
+	 * AJAX handler to create landing page.
+	 */
+	public function create_landing_page() {
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'edit_pages' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied. You do not have permission to create pages.', 'region-manager' ) ) );
+		}
+
+		$page_title     = isset( $_POST['page_title'] ) ? sanitize_text_field( wp_unslash( $_POST['page_title'] ) ) : __( 'Select Your Region', 'region-manager' );
+		$set_as_home    = isset( $_POST['set_as_home'] ) ? (bool) $_POST['set_as_home'] : false;
+		$enable_landing = isset( $_POST['enable_landing'] ) ? (bool) $_POST['enable_landing'] : true;
+
+		// Check if a landing page already exists.
+		$existing_page_id = get_option( 'rm_landing_page_id' );
+		if ( $existing_page_id && get_post( $existing_page_id ) ) {
+			$page_url  = get_permalink( $existing_page_id );
+			$edit_url  = admin_url( 'post.php?post=' . $existing_page_id . '&action=edit' );
+			wp_send_json_error(
+				array(
+					'message'  => __( 'A landing page already exists.', 'region-manager' ),
+					'page_url' => $page_url,
+					'edit_url' => $edit_url,
+				)
+			);
+		}
+
+		// Create the page.
+		$page_data = array(
+			'post_title'   => $page_title,
+			'post_content' => '[region_landing_page]',
+			'post_status'  => 'publish',
+			'post_type'    => 'page',
+			'post_author'  => get_current_user_id(),
+		);
+
+		$page_id = wp_insert_post( $page_data );
+
+		if ( is_wp_error( $page_id ) ) {
+			wp_send_json_error( array( 'message' => __( 'Failed to create landing page.', 'region-manager' ) ) );
+		}
+
+		// Store the page ID.
+		update_option( 'rm_landing_page_id', $page_id );
+
+		// Set as homepage if requested.
+		if ( $set_as_home ) {
+			update_option( 'show_on_front', 'page' );
+			update_option( 'page_on_front', $page_id );
+		}
+
+		// Enable landing page if requested.
+		if ( $enable_landing ) {
+			update_option( 'rm_landing_page_enabled', true );
+		}
+
+		$page_url = get_permalink( $page_id );
+		$edit_url = admin_url( 'post.php?post=' . $page_id . '&action=edit' );
+
+		wp_send_json_success(
+			array(
+				'message'  => __( 'Landing page created successfully!', 'region-manager' ),
+				'page_id'  => $page_id,
+				'page_url' => $page_url,
+				'edit_url' => $edit_url,
+			)
+		);
+	}
+
+	/**
+	 * Get existing landing page info.
+	 *
+	 * @return array|null Landing page info or null.
+	 */
+	public function get_landing_page_info() {
+		$page_id = get_option( 'rm_landing_page_id' );
+
+		if ( ! $page_id ) {
+			return null;
+		}
+
+		$page = get_post( $page_id );
+
+		if ( ! $page || 'page' !== $page->post_type ) {
+			return null;
+		}
+
+		$is_homepage = ( 'page' === get_option( 'show_on_front' ) && intval( get_option( 'page_on_front' ) ) === $page_id );
+
+		return array(
+			'id'          => $page_id,
+			'title'       => $page->post_title,
+			'url'         => get_permalink( $page_id ),
+			'edit_url'    => admin_url( 'post.php?post=' . $page_id . '&action=edit' ),
+			'status'      => $page->post_status,
+			'is_homepage' => $is_homepage,
+		);
+	}
+
+	/**
 	 * AJAX handler to save menu flag settings.
 	 */
 	public function save_menu_flag_settings() {

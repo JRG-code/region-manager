@@ -12,6 +12,7 @@ $landing_page_options = $customization->get_landing_page_settings();
 $menu_flag_options    = $customization->get_menu_flag_settings();
 $translator_options   = $customization->get_translator_settings();
 $menu_locations       = $customization->get_menu_locations();
+$landing_page_info    = $customization->get_landing_page_info();
 
 // Include plugin.php for is_plugin_active() function.
 if ( ! function_exists( 'is_plugin_active' ) ) {
@@ -35,6 +36,90 @@ if ( ! function_exists( 'is_plugin_active' ) ) {
 			<p class="description">
 				<?php esc_html_e( 'Configure the region selector landing page. Use shortcode [region_landing_page] to display it on any page.', 'region-manager' ); ?>
 			</p>
+
+			<!-- Quick Landing Page Creation -->
+			<div class="rm-quick-setup">
+				<h3><?php esc_html_e( 'Quick Setup', 'region-manager' ); ?></h3>
+
+				<?php if ( $landing_page_info ) : ?>
+					<div class="rm-existing-page">
+						<div class="rm-page-status">
+							<span class="dashicons dashicons-yes-alt"></span>
+							<strong><?php esc_html_e( 'Landing Page Created:', 'region-manager' ); ?></strong>
+							<a href="<?php echo esc_url( $landing_page_info['url'] ); ?>" target="_blank" class="rm-page-link">
+								<?php echo esc_html( $landing_page_info['title'] ); ?>
+							</a>
+							<?php if ( $landing_page_info['is_homepage'] ) : ?>
+								<span class="rm-homepage-badge"><?php esc_html_e( 'Homepage', 'region-manager' ); ?></span>
+							<?php endif; ?>
+						</div>
+						<div class="rm-page-actions">
+							<a href="<?php echo esc_url( $landing_page_info['url'] ); ?>" target="_blank" class="button">
+								<span class="dashicons dashicons-external"></span>
+								<?php esc_html_e( 'View Page', 'region-manager' ); ?>
+							</a>
+							<a href="<?php echo esc_url( $landing_page_info['edit_url'] ); ?>" target="_blank" class="button">
+								<span class="dashicons dashicons-edit"></span>
+								<?php esc_html_e( 'Edit Page', 'region-manager' ); ?>
+							</a>
+							<?php if ( ! $landing_page_info['is_homepage'] ) : ?>
+								<button type="button" class="button" id="rm-set-as-homepage" data-page-id="<?php echo esc_attr( $landing_page_info['id'] ); ?>">
+									<span class="dashicons dashicons-admin-home"></span>
+									<?php esc_html_e( 'Set as Homepage', 'region-manager' ); ?>
+								</button>
+							<?php endif; ?>
+						</div>
+					</div>
+				<?php else : ?>
+					<div class="rm-create-page-form">
+						<p><?php esc_html_e( 'Create a landing page with one click. This will create a new WordPress page with the region selector shortcode.', 'region-manager' ); ?></p>
+
+						<table class="form-table">
+							<tbody>
+								<tr>
+									<th scope="row">
+										<label for="rm-new-page-title"><?php esc_html_e( 'Page Title', 'region-manager' ); ?></label>
+									</th>
+									<td>
+										<input type="text" id="rm-new-page-title" class="regular-text" value="<?php esc_attr_e( 'Select Your Region', 'region-manager' ); ?>" />
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"></th>
+									<td>
+										<label>
+											<input type="checkbox" id="rm-set-as-home-checkbox" checked />
+											<?php esc_html_e( 'Set as homepage', 'region-manager' ); ?>
+										</label>
+										<p class="description"><?php esc_html_e( 'This will make the landing page your site\'s homepage.', 'region-manager' ); ?></p>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"></th>
+									<td>
+										<label>
+											<input type="checkbox" id="rm-enable-landing-checkbox" checked />
+											<?php esc_html_e( 'Enable landing page functionality', 'region-manager' ); ?>
+										</label>
+										<p class="description"><?php esc_html_e( 'Automatically enables the landing page settings below.', 'region-manager' ); ?></p>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<p>
+							<button type="button" class="button button-primary button-hero" id="rm-create-landing-page">
+								<span class="dashicons dashicons-plus-alt"></span>
+								<?php esc_html_e( 'Create Landing Page', 'region-manager' ); ?>
+							</button>
+						</p>
+					</div>
+				<?php endif; ?>
+			</div>
+
+			<hr style="margin: 30px 0;">
+
+			<h3><?php esc_html_e( 'Landing Page Configuration', 'region-manager' ); ?></h3>
 
 			<form id="rm-landing-page-form">
 				<table class="form-table">
@@ -317,6 +402,75 @@ if ( ! function_exists( 'is_plugin_active' ) ) {
 			$(target).addClass('active');
 		});
 
+		// Create Landing Page
+		$('#rm-create-landing-page').on('click', function() {
+			var $button = $(this);
+			var originalText = $button.html();
+
+			if (!confirm('<?php esc_html_e( 'Create a new landing page? This will create a published WordPress page.', 'region-manager' ); ?>')) {
+				return;
+			}
+
+			var formData = {
+				action: 'rm_create_landing_page',
+				nonce: rmAdmin.nonce,
+				page_title: $('#rm-new-page-title').val(),
+				set_as_home: $('#rm-set-as-home-checkbox').is(':checked'),
+				enable_landing: $('#rm-enable-landing-checkbox').is(':checked')
+			};
+
+			$button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> <?php esc_html_e( 'Creating...', 'region-manager' ); ?>');
+
+			$.post(ajaxurl, formData, function(response) {
+				if (response.success) {
+					alert(response.data.message + '\n\n' + '<?php esc_html_e( 'The page has been created. Refreshing...', 'region-manager' ); ?>');
+					location.reload();
+				} else {
+					alert(response.data.message);
+					if (response.data.page_url) {
+						if (confirm('<?php esc_html_e( 'Would you like to view the existing page?', 'region-manager' ); ?>')) {
+							window.open(response.data.page_url, '_blank');
+						}
+					}
+					$button.prop('disabled', false).html(originalText);
+				}
+			}).fail(function() {
+				alert('<?php esc_html_e( 'An error occurred. Please try again.', 'region-manager' ); ?>');
+				$button.prop('disabled', false).html(originalText);
+			});
+		});
+
+		// Set as Homepage
+		$('#rm-set-as-homepage').on('click', function() {
+			var $button = $(this);
+			var pageId = $button.data('page-id');
+			var originalText = $button.html();
+
+			if (!confirm('<?php esc_html_e( 'Set this page as your site homepage?', 'region-manager' ); ?>')) {
+				return;
+			}
+
+			$button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> <?php esc_html_e( 'Setting...', 'region-manager' ); ?>');
+
+			$.post(ajaxurl, {
+				action: 'update_option',
+				option_name: 'page_on_front',
+				option_value: pageId
+			}, function() {
+				$.post(ajaxurl, {
+					action: 'update_option',
+					option_name: 'show_on_front',
+					option_value: 'page'
+				}, function() {
+					alert('<?php esc_html_e( 'Homepage updated successfully! Refreshing...', 'region-manager' ); ?>');
+					location.reload();
+				});
+			}).fail(function() {
+				alert('<?php esc_html_e( 'An error occurred. Please try again.', 'region-manager' ); ?>');
+				$button.prop('disabled', false).html(originalText);
+			});
+		});
+
 		// Landing Page Form
 		$('#rm-landing-page-form').on('submit', function(e) {
 			e.preventDefault();
@@ -406,6 +560,97 @@ if ( ! function_exists( 'is_plugin_active' ) ) {
 
 .rm-tab-content.active {
 	display: block;
+}
+
+/* Quick Setup Styles */
+.rm-quick-setup {
+	background: #f0f6fc;
+	border: 1px solid #c3dafe;
+	border-radius: 4px;
+	padding: 20px;
+	margin: 20px 0;
+}
+
+.rm-quick-setup h3 {
+	margin-top: 0;
+	color: #1e3a8a;
+}
+
+.rm-existing-page {
+	background: #fff;
+	border-radius: 4px;
+	padding: 15px;
+}
+
+.rm-page-status {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 15px;
+}
+
+.rm-page-status .dashicons-yes-alt {
+	color: #00a32a;
+	font-size: 24px;
+	width: 24px;
+	height: 24px;
+}
+
+.rm-page-link {
+	font-size: 16px;
+	text-decoration: none;
+}
+
+.rm-homepage-badge {
+	display: inline-block;
+	padding: 3px 10px;
+	background: #00a32a;
+	color: #fff;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.rm-page-actions {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.rm-page-actions .button .dashicons {
+	margin-right: 5px;
+	vertical-align: middle;
+}
+
+.rm-create-page-form {
+	background: #fff;
+	border-radius: 4px;
+	padding: 20px;
+}
+
+.button-hero {
+	padding: 10px 20px !important;
+	font-size: 16px !important;
+	height: auto !important;
+	line-height: 1.5 !important;
+}
+
+.button-hero .dashicons {
+	margin-right: 8px;
+	vertical-align: middle;
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.dashicons.spin {
+	animation: spin 1s linear infinite;
 }
 
 .rm-shortcode-info {

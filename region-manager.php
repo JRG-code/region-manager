@@ -269,6 +269,7 @@ final class Region_Manager {
 
 		// Customization AJAX handlers.
 		$this->loader->add_action( 'wp_ajax_rm_save_landing_page_settings', $plugin_customization, 'save_landing_page_settings' );
+		$this->loader->add_action( 'wp_ajax_rm_create_landing_page', $plugin_customization, 'create_landing_page' );
 		$this->loader->add_action( 'wp_ajax_rm_save_menu_flag_settings', $plugin_customization, 'save_menu_flag_settings' );
 		$this->loader->add_action( 'wp_ajax_rm_save_translator_settings', $plugin_customization, 'save_translator_settings' );
 	}
