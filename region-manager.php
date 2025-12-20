@@ -102,6 +102,7 @@ require RM_PLUGIN_DIR . 'admin/class-rm-admin.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-settings.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-dashboard.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-products.php';
+require RM_PLUGIN_DIR . 'admin/class-rm-product-meta-box.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-orders.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-customization.php';
 require RM_PLUGIN_DIR . 'public/class-rm-public.php';
@@ -252,6 +253,7 @@ final class Region_Manager {
 		$plugin_license       = RM_License::get_instance();
 		$plugin_settings      = new RM_Settings();
 		$plugin_products      = new RM_Products();
+		$product_meta_box     = new RM_Product_Meta_Box();
 		$plugin_orders        = new RM_Orders();
 		$plugin_customization = new RM_Customization( 'region-manager', RM_VERSION );
 		$order_status         = new RM_Order_Status();
