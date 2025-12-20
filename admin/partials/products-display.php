@@ -1,6 +1,9 @@
 <?php
 /**
- * Provide an admin area view for products management.
+ * Provide an admin area view for products management (VIEW/FILTER ONLY).
+ *
+ * This page displays WooCommerce products filtered by region.
+ * For editing products, users are directed to WooCommerce product editor.
  *
  * @package    Region_Manager
  * @subpackage Region_Manager/admin/partials
@@ -12,38 +15,57 @@ $regions = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}rm_regions WHERE st
 ?>
 
 <div class="wrap rm-products-page">
-	<h1 class="wp-heading-inline"><?php esc_html_e( 'Products', 'region-manager' ); ?></h1>
+	<h1 class="wp-heading-inline"><?php esc_html_e( 'Products by Region', 'region-manager' ); ?></h1>
+	<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=product' ) ); ?>" class="page-title-action">
+		<?php esc_html_e( 'Add New Product', 'region-manager' ); ?>
+	</a>
 	<hr class="wp-header-end">
 
-	<!-- Top Bar -->
-	<div class="rm-products-topbar">
-		<div class="rm-topbar-left">
-			<!-- Region Filter -->
-			<select id="rm-region-filter" class="rm-region-filter">
-				<option value=""><?php esc_html_e( 'All Regions', 'region-manager' ); ?></option>
-				<?php foreach ( $regions as $region ) : ?>
-					<option value="<?php echo esc_attr( $region['id'] ); ?>">
+	<p class="description">
+		<?php esc_html_e( 'View products filtered by region. To edit product details or assign regions, click the "Edit Product" button which will take you to the WooCommerce product editor.', 'region-manager' ); ?>
+	</p>
+
+	<!-- Filter Tabs -->
+	<div class="rm-filter-tabs">
+		<ul class="subsubsub">
+			<li>
+				<a href="#" class="rm-filter-link current" data-filter="all">
+					<?php esc_html_e( 'All Products', 'region-manager' ); ?>
+					<span class="count" id="count-all">(0)</span>
+				</a> |
+			</li>
+			<li>
+				<a href="#" class="rm-filter-link" data-filter="all_regions">
+					<?php esc_html_e( 'All Regions', 'region-manager' ); ?>
+					<span class="count" id="count-all-regions">(0)</span>
+				</a> |
+			</li>
+			<li>
+				<a href="#" class="rm-filter-link" data-filter="without_region">
+					<?php esc_html_e( 'Without Region', 'region-manager' ); ?>
+					<span class="count" id="count-without-region">(0)</span>
+				</a>
+				<?php if ( ! empty( $regions ) ) : ?>
+					|
+				<?php endif; ?>
+			</li>
+			<?php foreach ( $regions as $index => $region ) : ?>
+				<li>
+					<a href="#" class="rm-filter-link" data-filter="<?php echo esc_attr( $region['id'] ); ?>">
 						<?php echo esc_html( $region['name'] ); ?>
-					</option>
-				<?php endforeach; ?>
-			</select>
+						<span class="count" id="count-region-<?php echo esc_attr( $region['id'] ); ?>">(0)</span>
+					</a>
+					<?php if ( $index < count( $regions ) - 1 ) : ?>
+						|
+					<?php endif; ?>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+	</div>
 
-			<!-- Search Box -->
-			<input type="search" id="rm-product-search" class="rm-product-search" placeholder="<?php esc_attr_e( 'Search products by name or SKU...', 'region-manager' ); ?>">
-
-			<!-- Bulk Actions -->
-			<select id="rm-bulk-action" class="rm-bulk-action">
-				<option value=""><?php esc_html_e( 'Bulk Actions', 'region-manager' ); ?></option>
-				<option value="assign"><?php esc_html_e( 'Assign to Region', 'region-manager' ); ?></option>
-				<option value="remove"><?php esc_html_e( 'Remove from Region', 'region-manager' ); ?></option>
-			</select>
-
-			<button type="button" id="rm-apply-bulk" class="button"><?php esc_html_e( 'Apply', 'region-manager' ); ?></button>
-		</div>
-
-		<div class="rm-topbar-right">
-			<span class="rm-products-count"></span>
-		</div>
+	<!-- Search Box -->
+	<div class="rm-products-search">
+		<input type="search" id="rm-product-search" class="rm-product-search" placeholder="<?php esc_attr_e( 'Search products by name or SKU...', 'region-manager' ); ?>">
 	</div>
 
 	<!-- Products Table -->
@@ -51,40 +73,23 @@ $regions = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}rm_regions WHERE st
 		<table class="wp-list-table widefat fixed striped rm-products-table">
 			<thead>
 				<tr>
-					<td class="check-column">
-						<input type="checkbox" id="rm-select-all-products">
-					</td>
 					<th class="column-image"><?php esc_html_e( 'Image', 'region-manager' ); ?></th>
-					<th class="column-name" data-sort="title"><?php esc_html_e( 'Product Name', 'region-manager' ); ?></th>
-					<th class="column-sku" data-sort="sku"><?php esc_html_e( 'SKU', 'region-manager' ); ?></th>
+					<th class="column-name"><?php esc_html_e( 'Product Name', 'region-manager' ); ?></th>
+					<th class="column-sku"><?php esc_html_e( 'SKU', 'region-manager' ); ?></th>
 					<th class="column-price"><?php esc_html_e( 'Base Price', 'region-manager' ); ?></th>
-					<th class="column-regions"><?php esc_html_e( 'Regions', 'region-manager' ); ?></th>
+					<th class="column-regions"><?php esc_html_e( 'Available In', 'region-manager' ); ?></th>
 					<th class="column-stock"><?php esc_html_e( 'Stock', 'region-manager' ); ?></th>
 					<th class="column-actions"><?php esc_html_e( 'Actions', 'region-manager' ); ?></th>
 				</tr>
 			</thead>
 			<tbody id="rm-products-tbody">
 				<tr class="rm-loading-row">
-					<td colspan="8" class="rm-loading">
+					<td colspan="7" class="rm-loading">
 						<span class="spinner is-active"></span>
 						<?php esc_html_e( 'Loading products...', 'region-manager' ); ?>
 					</td>
 				</tr>
 			</tbody>
-			<tfoot>
-				<tr>
-					<td class="check-column">
-						<input type="checkbox">
-					</td>
-					<th class="column-image"><?php esc_html_e( 'Image', 'region-manager' ); ?></th>
-					<th class="column-name"><?php esc_html_e( 'Product Name', 'region-manager' ); ?></th>
-					<th class="column-sku"><?php esc_html_e( 'SKU', 'region-manager' ); ?></th>
-					<th class="column-price"><?php esc_html_e( 'Base Price', 'region-manager' ); ?></th>
-					<th class="column-regions"><?php esc_html_e( 'Regions', 'region-manager' ); ?></th>
-					<th class="column-stock"><?php esc_html_e( 'Stock', 'region-manager' ); ?></th>
-					<th class="column-actions"><?php esc_html_e( 'Actions', 'region-manager' ); ?></th>
-				</tr>
-			</tfoot>
 		</table>
 	</div>
 
@@ -95,218 +100,216 @@ $regions = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}rm_regions WHERE st
 	</div>
 </div>
 
-<!-- Edit Regions Modal -->
-<div id="rm-edit-regions-modal" class="rm-modal" style="display: none;">
-	<div class="rm-modal-overlay"></div>
-	<div class="rm-modal-content">
-		<div class="rm-modal-header">
-			<h2><?php esc_html_e( 'Edit Product Regions', 'region-manager' ); ?></h2>
-			<button type="button" class="rm-modal-close">
-				<span class="dashicons dashicons-no"></span>
-			</button>
-		</div>
-		<div class="rm-modal-body">
-			<div class="rm-product-info">
-				<div class="rm-product-image"></div>
-				<div class="rm-product-details">
-					<h3 class="rm-product-name"></h3>
-					<div class="rm-product-meta">
-						<span class="rm-product-base-price"></span>
-						<a href="#" class="rm-product-wc-link" target="_blank"><?php esc_html_e( 'View in WooCommerce', 'region-manager' ); ?></a>
-					</div>
-				</div>
-			</div>
+<style>
+	.rm-products-page .description {
+		margin: 15px 0;
+		color: #666;
+	}
 
-			<div class="rm-regions-assignment">
-				<div class="rm-region-items"></div>
-			</div>
+	.rm-filter-tabs {
+		margin: 20px 0 15px;
+	}
 
-			<div class="rm-variation-option" style="display: none;">
-				<label>
-					<input type="checkbox" id="rm-apply-to-variations">
-					<?php esc_html_e( 'Apply to all variations', 'region-manager' ); ?>
-				</label>
-			</div>
-		</div>
-		<div class="rm-modal-footer">
-			<button type="button" class="button rm-modal-cancel"><?php esc_html_e( 'Cancel', 'region-manager' ); ?></button>
-			<button type="button" class="button button-primary rm-save-product-regions"><?php esc_html_e( 'Save Changes', 'region-manager' ); ?></button>
-		</div>
-	</div>
-</div>
+	.rm-filter-tabs .subsubsub {
+		margin: 0;
+		padding: 0;
+	}
 
-<!-- Bulk Assign Modal -->
-<div id="rm-bulk-assign-modal" class="rm-modal" style="display: none;">
-	<div class="rm-modal-overlay"></div>
-	<div class="rm-modal-content">
-		<div class="rm-modal-header">
-			<h2 class="rm-bulk-modal-title"><?php esc_html_e( 'Bulk Assign to Region', 'region-manager' ); ?></h2>
-			<button type="button" class="rm-modal-close">
-				<span class="dashicons dashicons-no"></span>
-			</button>
-		</div>
-		<div class="rm-modal-body">
-			<div class="rm-bulk-info">
-				<p class="rm-bulk-count"></p>
-			</div>
+	.rm-filter-tabs .rm-filter-link.current {
+		color: #000;
+		font-weight: 600;
+	}
 
-			<div class="rm-form-group">
-				<label for="rm-bulk-region">
-					<?php esc_html_e( 'Select Region', 'region-manager' ); ?>
-					<span class="required">*</span>
-				</label>
-				<select id="rm-bulk-region" class="widefat" required>
-					<option value=""><?php esc_html_e( 'Choose a region...', 'region-manager' ); ?></option>
-					<?php foreach ( $regions as $region ) : ?>
-						<option value="<?php echo esc_attr( $region['id'] ); ?>">
-							<?php echo esc_html( $region['name'] ); ?>
-						</option>
-					<?php endforeach; ?>
-				</select>
-			</div>
+	.rm-products-search {
+		margin: 15px 0;
+	}
 
-			<div class="rm-bulk-action-options" style="display: none;">
-				<div class="rm-form-group">
-					<label>
-						<input type="checkbox" id="rm-bulk-set-price">
-						<?php esc_html_e( 'Set price override', 'region-manager' ); ?>
-					</label>
-				</div>
+	.rm-product-search {
+		width: 300px;
+		padding: 6px 10px;
+	}
 
-				<div class="rm-form-group rm-bulk-price-fields" style="display: none;">
-					<label for="rm-bulk-price-override">
-						<?php esc_html_e( 'Regular Price Override', 'region-manager' ); ?>
-					</label>
-					<input type="text" id="rm-bulk-price-override" class="widefat" placeholder="<?php esc_attr_e( 'Leave empty to use base price', 'region-manager' ); ?>">
-				</div>
+	.rm-products-table-wrapper {
+		margin: 20px 0;
+	}
 
-				<div class="rm-form-group rm-bulk-price-fields" style="display: none;">
-					<label for="rm-bulk-sale-price-override">
-						<?php esc_html_e( 'Sale Price Override', 'region-manager' ); ?>
-					</label>
-					<input type="text" id="rm-bulk-sale-price-override" class="widefat" placeholder="<?php esc_attr_e( 'Leave empty to use base sale price', 'region-manager' ); ?>">
-				</div>
+	.rm-products-table .column-image {
+		width: 60px;
+	}
 
-				<div class="rm-form-group">
-					<label>
-						<input type="checkbox" id="rm-bulk-apply-variations">
-						<?php esc_html_e( 'Apply to all variations of variable products', 'region-manager' ); ?>
-					</label>
-				</div>
-			</div>
-		</div>
-		<div class="rm-modal-footer">
-			<button type="button" class="button rm-modal-cancel"><?php esc_html_e( 'Cancel', 'region-manager' ); ?></button>
-			<button type="button" class="button button-primary rm-bulk-assign-save"><?php esc_html_e( 'Apply', 'region-manager' ); ?></button>
-		</div>
-	</div>
-</div>
+	.rm-products-table .column-name {
+		width: auto;
+	}
+
+	.rm-products-table .column-sku {
+		width: 120px;
+	}
+
+	.rm-products-table .column-price {
+		width: 100px;
+	}
+
+	.rm-products-table .column-regions {
+		width: 200px;
+	}
+
+	.rm-products-table .column-stock {
+		width: 100px;
+	}
+
+	.rm-products-table .column-actions {
+		width: 150px;
+	}
+
+	.rm-products-table .rm-loading {
+		text-align: center;
+		padding: 40px 20px;
+	}
+
+	.rm-products-table .rm-no-products {
+		text-align: center;
+		padding: 40px 20px;
+		color: #666;
+	}
+
+	.rm-region-badge {
+		display: inline-block;
+		padding: 3px 8px;
+		margin: 2px;
+		background: #2271b1;
+		color: #fff;
+		border-radius: 3px;
+		font-size: 12px;
+		white-space: nowrap;
+	}
+
+	.rm-region-badge.all-regions {
+		background: #00a32a;
+	}
+
+	.rm-no-regions {
+		display: inline-block;
+		padding: 3px 8px;
+		background: #dba617;
+		color: #fff;
+		border-radius: 3px;
+		font-size: 12px;
+	}
+
+	.rm-price-override {
+		display: block;
+		font-size: 11px;
+		color: #666;
+		margin-top: 2px;
+	}
+
+	.rm-stock-status {
+		display: inline-block;
+		padding: 3px 8px;
+		border-radius: 3px;
+		font-size: 12px;
+	}
+
+	.rm-stock-status.in-stock {
+		background: #d5e8d4;
+		color: #1a5228;
+	}
+
+	.rm-stock-status.out-of-stock {
+		background: #f8d7da;
+		color: #721c24;
+	}
+
+	.rm-pagination {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin: 20px 0;
+		padding: 10px 0;
+	}
+
+	.rm-pagination-info {
+		color: #666;
+	}
+
+	.rm-pagination-links a {
+		display: inline-block;
+		padding: 5px 10px;
+		margin: 0 2px;
+		border: 1px solid #ddd;
+		border-radius: 3px;
+		text-decoration: none;
+		color: #2271b1;
+	}
+
+	.rm-pagination-links a:hover {
+		background: #f6f7f7;
+	}
+
+	.rm-pagination-links a.current {
+		background: #2271b1;
+		color: #fff;
+		border-color: #2271b1;
+	}
+
+	.rm-pagination-links a.disabled {
+		color: #ddd;
+		pointer-events: none;
+	}
+
+	.rm-pagination-links .rm-page-dots {
+		padding: 5px;
+		color: #666;
+	}
+
+	.rm-warning-notice {
+		background: #fff3cd;
+		border-left: 4px solid #ffc107;
+		padding: 12px;
+		margin: 10px 0;
+	}
+
+	.rm-warning-notice p {
+		margin: 0;
+		color: #856404;
+	}
+</style>
 
 <script type="text/javascript">
 jQuery(document).ready(function($) {
 	'use strict';
 
-	var ProductsManager = {
+	var ProductsViewer = {
 		currentPage: 1,
 		perPage: 20,
-		selectedProducts: [],
-		currentFilters: {
-			search: '',
-			region_id: null,
-			orderby: 'title',
-			order: 'ASC'
-		},
+		currentFilter: 'all',
+		searchTerm: '',
 
 		init: function() {
 			this.bindEvents();
 			this.loadProducts();
+			this.loadCounts();
 		},
 
 		bindEvents: function() {
 			var self = this;
 
+			// Filter tabs
+			$('.rm-filter-link').on('click', function(e) {
+				e.preventDefault();
+				$('.rm-filter-link').removeClass('current');
+				$(this).addClass('current');
+				self.currentFilter = $(this).data('filter');
+				self.currentPage = 1;
+				self.loadProducts();
+			});
+
 			// Search
 			$('#rm-product-search').on('input', $.debounce(500, function() {
-				self.currentFilters.search = $(this).val();
+				self.searchTerm = $(this).val();
 				self.currentPage = 1;
 				self.loadProducts();
 			}));
-
-			// Region filter
-			$('#rm-region-filter').on('change', function() {
-				var value = $(this).val();
-				self.currentFilters.region_id = value ? parseInt(value) : null;
-				self.currentPage = 1;
-				self.loadProducts();
-			});
-
-			// Select all checkbox
-			$('#rm-select-all-products').on('change', function() {
-				$('.rm-product-checkbox').prop('checked', $(this).is(':checked'));
-				self.updateSelectedProducts();
-			});
-
-			// Individual checkboxes
-			$(document).on('change', '.rm-product-checkbox', function() {
-				self.updateSelectedProducts();
-			});
-
-			// Edit regions button
-			$(document).on('click', '.rm-edit-regions-btn', function(e) {
-				e.preventDefault();
-				var productId = $(this).data('product-id');
-				self.openEditModal(productId);
-			});
-
-			// Modal close
-			$('.rm-modal-close, .rm-modal-cancel').on('click', function() {
-				$(this).closest('.rm-modal').hide();
-			});
-
-			$('.rm-modal-overlay').on('click', function() {
-				$(this).closest('.rm-modal').hide();
-			});
-
-			// Save product regions
-			$('.rm-save-product-regions').on('click', function() {
-				self.saveProductRegions();
-			});
-
-			// Region availability toggle
-			$(document).on('change', '.rm-region-available', function() {
-				var $item = $(this).closest('.rm-region-item');
-				if ($(this).is(':checked')) {
-					$item.find('.rm-region-pricing').slideDown();
-				} else {
-					$item.find('.rm-region-pricing').slideUp();
-				}
-			});
-
-			// Bulk actions
-			$('#rm-apply-bulk').on('click', function() {
-				self.handleBulkAction();
-			});
-
-			// Bulk assign modal
-			$('#rm-bulk-region').on('change', function() {
-				if ($(this).val()) {
-					$('.rm-bulk-action-options').slideDown();
-				} else {
-					$('.rm-bulk-action-options').slideUp();
-				}
-			});
-
-			$('#rm-bulk-set-price').on('change', function() {
-				if ($(this).is(':checked')) {
-					$('.rm-bulk-price-fields').slideDown();
-				} else {
-					$('.rm-bulk-price-fields').slideUp();
-				}
-			});
-
-			$('.rm-bulk-assign-save').on('click', function() {
-				self.saveBulkAssign();
-			});
 
 			// Pagination
 			$(document).on('click', '.rm-page-link', function(e) {
@@ -315,19 +318,8 @@ jQuery(document).ready(function($) {
 				if (page && page !== self.currentPage) {
 					self.currentPage = page;
 					self.loadProducts();
+					$('html, body').animate({ scrollTop: $('.rm-products-table').offset().top - 50 }, 300);
 				}
-			});
-
-			// Column sorting
-			$('.rm-products-table th[data-sort]').on('click', function() {
-				var sortBy = $(this).data('sort');
-				if (self.currentFilters.orderby === sortBy) {
-					self.currentFilters.order = self.currentFilters.order === 'ASC' ? 'DESC' : 'ASC';
-				} else {
-					self.currentFilters.orderby = sortBy;
-					self.currentFilters.order = 'ASC';
-				}
-				self.loadProducts();
 			});
 		},
 
@@ -342,19 +334,22 @@ jQuery(document).ready(function($) {
 					nonce: rmAdmin.nonce,
 					page: self.currentPage,
 					per_page: self.perPage,
-					search: self.currentFilters.search,
-					region_id: self.currentFilters.region_id,
-					orderby: self.currentFilters.orderby,
-					order: self.currentFilters.order
+					search: self.searchTerm,
+					filter: self.currentFilter
 				},
 				beforeSend: function() {
-					$('#rm-products-tbody').html('<tr class="rm-loading-row"><td colspan="8" class="rm-loading"><span class="spinner is-active"></span> <?php esc_html_e( 'Loading products...', 'region-manager' ); ?></td></tr>');
+					$('#rm-products-tbody').html(
+						'<tr class="rm-loading-row">' +
+						'<td colspan="7" class="rm-loading">' +
+						'<span class="spinner is-active"></span> <?php esc_html_e( 'Loading products...', 'region-manager' ); ?>' +
+						'</td>' +
+						'</tr>'
+					);
 				},
 				success: function(response) {
 					if (response.success) {
 						self.renderProducts(response.data.products);
 						self.renderPagination(response.data.total, response.data.total_pages);
-						$('.rm-products-count').text(response.data.total + ' <?php esc_html_e( 'products', 'region-manager' ); ?>');
 					} else {
 						self.showError(response.data.message);
 					}
@@ -369,34 +364,51 @@ jQuery(document).ready(function($) {
 			var html = '';
 
 			if (products.length === 0) {
-				html = '<tr class="rm-no-products"><td colspan="8"><?php esc_html_e( 'No products found.', 'region-manager' ); ?></td></tr>';
+				html = '<tr class="rm-no-products">' +
+					   '<td colspan="7"><?php esc_html_e( 'No products found.', 'region-manager' ); ?></td>' +
+					   '</tr>';
 			} else {
 				$.each(products, function(i, product) {
 					var regionsHtml = '';
+
 					if (product.regions && product.regions.length > 0) {
 						$.each(product.regions, function(j, region) {
+							var badgeClass = region.region_id === 0 ? 'rm-region-badge all-regions' : 'rm-region-badge';
 							var priceInfo = '';
-							if (region.price_override) {
-								priceInfo = ' (' + region.price_override + ')';
+
+							if (region.price_override && region.region_id !== 0) {
+								priceInfo = '<span class="rm-price-override"><?php esc_html_e( 'Override:', 'region-manager' ); ?> ' + region.price_override + '</span>';
 							}
-							regionsHtml += '<span class="rm-region-badge" title="' + region.name + priceInfo + '">' + region.name + '</span> ';
+
+							regionsHtml += '<span class="' + badgeClass + '" title="' + region.name + '">' +
+										   region.name +
+										   '</span>' + priceInfo + ' ';
 						});
 					} else {
-						regionsHtml = '<span class="rm-no-regions"><?php esc_html_e( 'No regions', 'region-manager' ); ?></span>';
+						regionsHtml = '<span class="rm-no-regions"><?php esc_html_e( '⚠ No regions', 'region-manager' ); ?></span>';
 					}
 
 					var stockClass = product.stock_status === 'instock' ? 'in-stock' : 'out-of-stock';
-					var stockText = product.stock_status === 'instock' ? '<?php esc_html_e( 'In stock', 'region-manager' ); ?>' : '<?php esc_html_e( 'Out of stock', 'region-manager' ); ?>';
+					var stockText = product.stock_status === 'instock' ?
+						'<?php esc_html_e( 'In stock', 'region-manager' ); ?>' :
+						'<?php esc_html_e( 'Out of stock', 'region-manager' ); ?>';
 
 					html += '<tr data-product-id="' + product.id + '">';
-					html += '<th class="check-column"><input type="checkbox" class="rm-product-checkbox" value="' + product.id + '"></th>';
 					html += '<td class="column-image">' + product.image + '</td>';
-					html += '<td class="column-name"><a href="<?php echo esc_url( admin_url( 'post.php?action=edit&post=' ) ); ?>' + product.id + '" target="_blank">' + product.name + '</a></td>';
+					html += '<td class="column-name">' +
+						   '<strong><a href="' + product.edit_url + '" target="_blank">' + product.name + '</a></strong>' +
+						   '</td>';
 					html += '<td class="column-sku">' + (product.sku || '—') + '</td>';
 					html += '<td class="column-price">' + (product.price || '—') + '</td>';
 					html += '<td class="column-regions">' + regionsHtml + '</td>';
-					html += '<td class="column-stock"><span class="rm-stock-status ' + stockClass + '">' + stockText + '</span></td>';
-					html += '<td class="column-actions"><button type="button" class="button button-small rm-edit-regions-btn" data-product-id="' + product.id + '"><?php esc_html_e( 'Edit Regions', 'region-manager' ); ?></button></td>';
+					html += '<td class="column-stock">' +
+						   '<span class="rm-stock-status ' + stockClass + '">' + stockText + '</span>' +
+						   '</td>';
+					html += '<td class="column-actions">' +
+						   '<a href="' + product.edit_url + '" class="button button-small" target="_blank">' +
+						   '<?php esc_html_e( 'Edit Product', 'region-manager' ); ?>' +
+						   '</a>' +
+						   '</td>';
 					html += '</tr>';
 				});
 			}
@@ -414,241 +426,59 @@ jQuery(document).ready(function($) {
 			var linksHtml = '';
 			if (totalPages > 1) {
 				// Previous
-				linksHtml += '<a href="#" class="rm-page-link ' + (self.currentPage === 1 ? 'disabled' : '') + '" data-page="' + (self.currentPage - 1) + '">‹</a>';
+				linksHtml += '<a href="#" class="rm-page-link ' + (self.currentPage === 1 ? 'disabled' : '') +
+							 '" data-page="' + (self.currentPage - 1) + '">‹</a>';
 
 				// Pages
 				for (var i = 1; i <= totalPages; i++) {
 					if (i === 1 || i === totalPages || (i >= self.currentPage - 2 && i <= self.currentPage + 2)) {
-						linksHtml += '<a href="#" class="rm-page-link ' + (i === self.currentPage ? 'current' : '') + '" data-page="' + i + '">' + i + '</a>';
+						linksHtml += '<a href="#" class="rm-page-link ' + (i === self.currentPage ? 'current' : '') +
+									 '" data-page="' + i + '">' + i + '</a>';
 					} else if (i === self.currentPage - 3 || i === self.currentPage + 3) {
 						linksHtml += '<span class="rm-page-dots">...</span>';
 					}
 				}
 
 				// Next
-				linksHtml += '<a href="#" class="rm-page-link ' + (self.currentPage === totalPages ? 'disabled' : '') + '" data-page="' + (self.currentPage + 1) + '">›</a>';
+				linksHtml += '<a href="#" class="rm-page-link ' + (self.currentPage === totalPages ? 'disabled' : '') +
+							 '" data-page="' + (self.currentPage + 1) + '">›</a>';
 			}
 
 			$('.rm-pagination-links').html(linksHtml);
 		},
 
-		updateSelectedProducts: function() {
-			this.selectedProducts = [];
-			$('.rm-product-checkbox:checked').each(function() {
-				ProductsManager.selectedProducts.push(parseInt($(this).val()));
-			});
-		},
-
-		openEditModal: function(productId) {
+		loadCounts: function() {
 			var self = this;
+			var filters = ['all', 'all_regions', 'without_region'];
 
-			$.ajax({
-				url: ajaxurl,
-				type: 'POST',
-				data: {
-					action: 'rm_get_product_region_data',
-					nonce: rmAdmin.nonce,
-					product_id: productId
-				},
-				success: function(response) {
-					if (response.success) {
-						self.renderEditModal(response.data);
-						$('#rm-edit-regions-modal').show();
-					} else {
-						self.showError(response.data.message);
+			// Add region IDs
+			<?php foreach ( $regions as $region ) : ?>
+			filters.push('<?php echo esc_js( $region['id'] ); ?>');
+			<?php endforeach; ?>
+
+			// Load count for each filter
+			$.each(filters, function(i, filter) {
+				$.ajax({
+					url: ajaxurl,
+					type: 'POST',
+					data: {
+						action: 'rm_get_products_table',
+						nonce: rmAdmin.nonce,
+						page: 1,
+						per_page: 1,
+						filter: filter
+					},
+					success: function(response) {
+						if (response.success) {
+							var countId = filter === 'all' ? '#count-all' :
+										 filter === 'all_regions' ? '#count-all-regions' :
+										 filter === 'without_region' ? '#count-without-region' :
+										 '#count-region-' + filter;
+							$(countId).text('(' + response.data.total + ')');
+						}
 					}
-				},
-				error: function() {
-					self.showError('<?php esc_html_e( 'Failed to load product data.', 'region-manager' ); ?>');
-				}
-			});
-		},
-
-		renderEditModal: function(data) {
-			var product = data.product;
-			var regions = data.regions;
-
-			// Product info
-			$('.rm-product-image').html(product.image);
-			$('.rm-product-name').text(product.name);
-			$('.rm-product-base-price').text('<?php esc_html_e( 'Base Price:', 'region-manager' ); ?> ' + (product.base_price || '—'));
-			$('.rm-product-wc-link').attr('href', '<?php echo esc_url( admin_url( 'post.php?action=edit&post=' ) ); ?>' + product.id);
-			$('#rm-edit-regions-modal').data('product-id', product.id);
-
-			// Show variation option for variable products
-			if (product.type === 'variable') {
-				$('.rm-variation-option').show();
-			} else {
-				$('.rm-variation-option').hide();
-			}
-
-			// Regions
-			var regionsHtml = '';
-			$.each(regions, function(i, region) {
-				var checked = region.available ? 'checked' : '';
-				var displayStyle = region.available ? '' : 'style="display:none;"';
-
-				regionsHtml += '<div class="rm-region-item">';
-				regionsHtml += '<div class="rm-region-header">';
-				regionsHtml += '<label><input type="checkbox" class="rm-region-available" data-region-id="' + region.region_id + '" ' + checked + '> ';
-				regionsHtml += '<strong><?php esc_html_e( 'Available in', 'region-manager' ); ?> ' + region.region_name + '</strong></label>';
-				regionsHtml += '</div>';
-				regionsHtml += '<div class="rm-region-pricing" ' + displayStyle + '>';
-				regionsHtml += '<div class="rm-price-field">';
-				regionsHtml += '<label><?php esc_html_e( 'Regular Price Override', 'region-manager' ); ?></label>';
-				regionsHtml += '<input type="text" class="rm-price-override" data-region-id="' + region.region_id + '" value="' + (region.price_override || '') + '" placeholder="<?php esc_attr_e( 'Leave empty to use base price', 'region-manager' ); ?>">';
-				regionsHtml += '</div>';
-				regionsHtml += '<div class="rm-price-field">';
-				regionsHtml += '<label><?php esc_html_e( 'Sale Price Override', 'region-manager' ); ?></label>';
-				regionsHtml += '<input type="text" class="rm-sale-price-override" data-region-id="' + region.region_id + '" value="' + (region.sale_price_override || '') + '" placeholder="<?php esc_attr_e( 'Leave empty to use base sale price', 'region-manager' ); ?>">';
-				regionsHtml += '</div>';
-				regionsHtml += '</div>';
-				regionsHtml += '</div>';
-			});
-
-			$('.rm-region-items').html(regionsHtml);
-		},
-
-		saveProductRegions: function() {
-			var self = this;
-			var productId = $('#rm-edit-regions-modal').data('product-id');
-			var regions = [];
-
-			$('.rm-region-item').each(function() {
-				var $item = $(this);
-				var regionId = $item.find('.rm-region-available').data('region-id');
-				var available = $item.find('.rm-region-available').is(':checked');
-				var priceOverride = $item.find('.rm-price-override').val();
-				var salePriceOverride = $item.find('.rm-sale-price-override').val();
-
-				regions.push({
-					region_id: regionId,
-					available: available,
-					price_override: priceOverride,
-					sale_price_override: salePriceOverride,
-					apply_to_variations: $('#rm-apply-to-variations').is(':checked')
 				});
 			});
-
-			$.ajax({
-				url: ajaxurl,
-				type: 'POST',
-				data: {
-					action: 'rm_save_product_regions',
-					nonce: rmAdmin.nonce,
-					product_id: productId,
-					regions: JSON.stringify(regions)
-				},
-				beforeSend: function() {
-					$('.rm-save-product-regions').prop('disabled', true).text('<?php esc_html_e( 'Saving...', 'region-manager' ); ?>');
-				},
-				success: function(response) {
-					if (response.success) {
-						self.showSuccess(response.data.message);
-						$('#rm-edit-regions-modal').hide();
-						self.loadProducts();
-					} else {
-						self.showError(response.data.message);
-					}
-				},
-				error: function() {
-					self.showError('<?php esc_html_e( 'Failed to save changes.', 'region-manager' ); ?>');
-				},
-				complete: function() {
-					$('.rm-save-product-regions').prop('disabled', false).text('<?php esc_html_e( 'Save Changes', 'region-manager' ); ?>');
-				}
-			});
-		},
-
-		handleBulkAction: function() {
-			var self = this;
-			var action = $('#rm-bulk-action').val();
-
-			if (!action) {
-				self.showError('<?php esc_html_e( 'Please select a bulk action.', 'region-manager' ); ?>');
-				return;
-			}
-
-			if (self.selectedProducts.length === 0) {
-				self.showError('<?php esc_html_e( 'Please select at least one product.', 'region-manager' ); ?>');
-				return;
-			}
-
-			// Open bulk modal
-			$('.rm-bulk-count').text(self.selectedProducts.length + ' <?php esc_html_e( 'products selected', 'region-manager' ); ?>');
-			$('#rm-bulk-assign-modal').data('action-type', action);
-
-			if (action === 'assign') {
-				$('.rm-bulk-modal-title').text('<?php esc_html_e( 'Bulk Assign to Region', 'region-manager' ); ?>');
-				$('.rm-bulk-assign-save').text('<?php esc_html_e( 'Assign', 'region-manager' ); ?>');
-			} else {
-				$('.rm-bulk-modal-title').text('<?php esc_html_e( 'Bulk Remove from Region', 'region-manager' ); ?>');
-				$('.rm-bulk-assign-save').text('<?php esc_html_e( 'Remove', 'region-manager' ); ?>');
-			}
-
-			$('#rm-bulk-assign-modal').show();
-		},
-
-		saveBulkAssign: function() {
-			var self = this;
-			var actionType = $('#rm-bulk-assign-modal').data('action-type');
-			var regionId = $('#rm-bulk-region').val();
-
-			if (!regionId) {
-				self.showError('<?php esc_html_e( 'Please select a region.', 'region-manager' ); ?>');
-				return;
-			}
-
-			var data = {
-				action: 'rm_bulk_assign_region',
-				nonce: rmAdmin.nonce,
-				product_ids: self.selectedProducts,
-				region_id: regionId,
-				action_type: actionType
-			};
-
-			if (actionType === 'assign') {
-				if ($('#rm-bulk-set-price').is(':checked')) {
-					data.price_override = $('#rm-bulk-price-override').val();
-					data.sale_price_override = $('#rm-bulk-sale-price-override').val();
-				}
-				data.apply_to_variations = $('#rm-bulk-apply-variations').is(':checked') ? '1' : '0';
-			}
-
-			$.ajax({
-				url: ajaxurl,
-				type: 'POST',
-				data: data,
-				beforeSend: function() {
-					$('.rm-bulk-assign-save').prop('disabled', true).text('<?php esc_html_e( 'Processing...', 'region-manager' ); ?>');
-				},
-				success: function(response) {
-					if (response.success) {
-						self.showSuccess(response.data.message);
-						$('#rm-bulk-assign-modal').hide();
-						self.loadProducts();
-						self.selectedProducts = [];
-						$('.rm-product-checkbox, #rm-select-all-products').prop('checked', false);
-						$('#rm-bulk-action').val('');
-						$('#rm-bulk-region').val('');
-						$('.rm-bulk-action-options').hide();
-					} else {
-						self.showError(response.data.message);
-					}
-				},
-				error: function() {
-					self.showError('<?php esc_html_e( 'Failed to process bulk action.', 'region-manager' ); ?>');
-				},
-				complete: function() {
-					$('.rm-bulk-assign-save').prop('disabled', false).text('<?php esc_html_e( 'Apply', 'region-manager' ); ?>');
-				}
-			});
-		},
-
-		showSuccess: function(message) {
-			var notice = $('<div class="notice notice-success is-dismissible"><p>' + message + '</p></div>');
-			$('.rm-products-page h1').after(notice);
-			setTimeout(function() { notice.fadeOut(); }, 3000);
 		},
 
 		showError: function(message) {
@@ -671,6 +501,6 @@ jQuery(document).ready(function($) {
 	};
 
 	// Initialize
-	ProductsManager.init();
+	ProductsViewer.init();
 });
 </script>

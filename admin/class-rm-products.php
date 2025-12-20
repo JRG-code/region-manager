@@ -50,6 +50,7 @@ class RM_Products {
 			'page'      => 1,
 			'search'    => '',
 			'region_id' => null,
+			'filter'    => 'all', // 'all', 'all_regions', 'without_region', or specific region_id.
 			'orderby'   => 'title',
 			'order'     => 'ASC',
 		);
@@ -80,6 +81,35 @@ class RM_Products {
 				continue;
 			}
 
+			$regions = $this->get_product_regions( $product_id );
+
+			// Apply filters.
+			if ( 'all_regions' === $args['filter'] ) {
+				// Show only products in "All Regions" (region_id = 0).
+				$is_in_all = $this->is_in_all_regions( $product_id );
+				if ( ! $is_in_all ) {
+					continue;
+				}
+			} elseif ( 'without_region' === $args['filter'] ) {
+				// Show only products without any region assignment.
+				if ( ! empty( $regions ) ) {
+					continue;
+				}
+			} elseif ( is_numeric( $args['filter'] ) && $args['filter'] > 0 ) {
+				// Show only products in specific region.
+				$found = false;
+				foreach ( $regions as $region ) {
+					if ( intval( $region['region_id'] ) === intval( $args['filter'] ) ) {
+						$found = true;
+						break;
+					}
+				}
+				// Also check for "All Regions" products.
+				if ( ! $found && ! $this->is_in_all_regions( $product_id ) ) {
+					continue;
+				}
+			}
+
 			$product_data = array(
 				'id'           => $product_id,
 				'name'         => $product->get_name(),
@@ -90,25 +120,34 @@ class RM_Products {
 				'price'        => $product->get_price(),
 				'stock_status' => $product->get_stock_status(),
 				'type'         => $product->get_type(),
-				'regions'      => $this->get_product_regions( $product_id ),
+				'regions'      => $regions,
+				'edit_url'     => admin_url( 'post.php?post=' . $product_id . '&action=edit' ),
 			);
-
-			// Filter by region if specified.
-			if ( null !== $args['region_id'] ) {
-				$region_data = $this->get_product_region_single( $product_id, $args['region_id'] );
-				if ( $region_data ) {
-					$product_data['regional_price']     = $region_data['price_override'] ?? $product_data['base_price'];
-					$product_data['regional_available'] = true;
-				} else {
-					// Skip if filtering by region and not available.
-					continue;
-				}
-			}
 
 			$products[] = $product_data;
 		}
 
 		return $products;
+	}
+
+	/**
+	 * Check if product is in all regions.
+	 *
+	 * @param int $product_id Product ID.
+	 * @return bool True if in all regions.
+	 */
+	private function is_in_all_regions( $product_id ) {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'rm_product_regions';
+
+		$result = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table_name} WHERE product_id = %d AND region_id = 0",
+				$product_id
+			)
+		);
+
+		return $result > 0;
 	}
 
 	/**
@@ -119,8 +158,8 @@ class RM_Products {
 	 */
 	public function get_products_count( $args = array() ) {
 		$defaults = array(
-			'search'    => '',
-			'region_id' => null,
+			'search' => '',
+			'filter' => 'all',
 		);
 
 		$args = wp_parse_args( $args, $defaults );
@@ -136,18 +175,38 @@ class RM_Products {
 
 		$product_ids = wc_get_products( $query_args );
 
-		// Filter by region if needed.
-		if ( null !== $args['region_id'] ) {
-			$filtered_ids = array();
-			foreach ( $product_ids as $product_id ) {
-				if ( $this->get_product_region_single( $product_id, $args['region_id'] ) ) {
+		// Apply filter.
+		if ( 'all' === $args['filter'] ) {
+			return count( $product_ids );
+		}
+
+		$filtered_ids = array();
+		foreach ( $product_ids as $product_id ) {
+			$regions = $this->get_product_regions( $product_id );
+
+			if ( 'all_regions' === $args['filter'] ) {
+				if ( $this->is_in_all_regions( $product_id ) ) {
+					$filtered_ids[] = $product_id;
+				}
+			} elseif ( 'without_region' === $args['filter'] ) {
+				if ( empty( $regions ) ) {
+					$filtered_ids[] = $product_id;
+				}
+			} elseif ( is_numeric( $args['filter'] ) && $args['filter'] > 0 ) {
+				$found = false;
+				foreach ( $regions as $region ) {
+					if ( intval( $region['region_id'] ) === intval( $args['filter'] ) ) {
+						$found = true;
+						break;
+					}
+				}
+				if ( $found || $this->is_in_all_regions( $product_id ) ) {
 					$filtered_ids[] = $product_id;
 				}
 			}
-			return count( $filtered_ids );
 		}
 
-		return count( $product_ids );
+		return count( $filtered_ids );
 	}
 
 	/**
@@ -161,12 +220,34 @@ class RM_Products {
 
 		$table_name = $wpdb->prefix . 'rm_product_regions';
 
+		// Check if product is in "All Regions" (region_id = 0).
+		$in_all_regions = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table_name} WHERE product_id = %d AND region_id = 0",
+				$product_id
+			)
+		);
+
+		if ( $in_all_regions > 0 ) {
+			// Return a special "All Regions" indicator.
+			return array(
+				array(
+					'region_id'          => 0,
+					'name'               => __( 'All Regions', 'region-manager' ),
+					'slug'               => 'all',
+					'price_override'     => null,
+					'sale_price_override' => null,
+				),
+			);
+		}
+
+		// Get specific region assignments.
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT pr.*, r.name, r.slug
 				FROM {$table_name} pr
 				JOIN {$wpdb->prefix}rm_regions r ON pr.region_id = r.id
-				WHERE pr.product_id = %d
+				WHERE pr.product_id = %d AND pr.region_id > 0
 				ORDER BY r.name ASC",
 				$product_id
 			),
@@ -580,29 +661,29 @@ class RM_Products {
 			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
 		}
 
-		$page      = isset( $_POST['page'] ) ? absint( $_POST['page'] ) : 1;
-		$per_page  = isset( $_POST['per_page'] ) ? absint( $_POST['per_page'] ) : 20;
-		$search    = isset( $_POST['search'] ) ? sanitize_text_field( $_POST['search'] ) : '';
-		$region_id = isset( $_POST['region_id'] ) ? absint( $_POST['region_id'] ) : null;
-		$orderby   = isset( $_POST['orderby'] ) ? sanitize_text_field( $_POST['orderby'] ) : 'title';
-		$order     = isset( $_POST['order'] ) ? sanitize_text_field( $_POST['order'] ) : 'ASC';
+		$page     = isset( $_POST['page'] ) ? absint( $_POST['page'] ) : 1;
+		$per_page = isset( $_POST['per_page'] ) ? absint( $_POST['per_page'] ) : 20;
+		$search   = isset( $_POST['search'] ) ? sanitize_text_field( $_POST['search'] ) : '';
+		$filter   = isset( $_POST['filter'] ) ? sanitize_text_field( $_POST['filter'] ) : 'all';
+		$orderby  = isset( $_POST['orderby'] ) ? sanitize_text_field( $_POST['orderby'] ) : 'title';
+		$order    = isset( $_POST['order'] ) ? sanitize_text_field( $_POST['order'] ) : 'ASC';
 
 		$args = array(
-			'limit'     => $per_page,
-			'page'      => $page,
-			'search'    => $search,
-			'region_id' => $region_id,
-			'orderby'   => $orderby,
-			'order'     => $order,
+			'limit'   => $per_page,
+			'page'    => $page,
+			'search'  => $search,
+			'filter'  => $filter,
+			'orderby' => $orderby,
+			'order'   => $order,
 		);
 
 		$products = $this->get_products_with_regions( $args );
-		$total    = $this->get_products_count( array( 'search' => $search, 'region_id' => $region_id ) );
+		$total    = $this->get_products_count( array( 'search' => $search, 'filter' => $filter ) );
 
 		wp_send_json_success(
 			array(
-				'products'   => $products,
-				'total'      => $total,
+				'products'    => $products,
+				'total'       => $total,
 				'total_pages' => ceil( $total / $per_page ),
 			)
 		);
