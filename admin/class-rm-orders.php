@@ -123,8 +123,8 @@ class RM_Orders {
 	/**
 	 * Get orders by region.
 	 *
-	 * @param int   $region_id Region ID (null for all).
-	 * @param array $args Query arguments.
+	 * @param int|string $region_id Region ID (null for all, 'no_region' for orders without region).
+	 * @param array      $args Query arguments.
 	 * @return array Array of orders.
 	 */
 	public function get_orders_by_region( $region_id = null, $args = array() ) {
@@ -147,6 +147,7 @@ class RM_Orders {
 			'page'    => $args['page'],
 			'orderby' => $args['orderby'],
 			'order'   => $args['order'],
+			'return'  => 'ids',
 		);
 
 		// Add status filter.
@@ -167,8 +168,13 @@ class RM_Orders {
 			$query_args['date_before'] = $args['date_before'];
 		}
 
-		// Add region filter via meta query.
-		if ( null !== $region_id ) {
+		// Handle region filter.
+		$order_ids = array();
+		if ( 'no_region' === $region_id ) {
+			// Get orders without region meta.
+			$order_ids = $this->get_orders_without_region( $query_args );
+		} elseif ( null !== $region_id ) {
+			// Add region filter via meta query.
 			$query_args['meta_query'] = array(
 				array(
 					'key'   => '_rm_region_id',
@@ -176,10 +182,20 @@ class RM_Orders {
 					'type'  => 'NUMERIC',
 				),
 			);
+			$order_ids = wc_get_orders( $query_args );
+		} else {
+			// Get all orders.
+			$order_ids = wc_get_orders( $query_args );
 		}
 
-		// Get orders.
-		$orders = wc_get_orders( $query_args );
+		// Convert order IDs to order objects.
+		$orders = array();
+		foreach ( $order_ids as $order_id ) {
+			$order = wc_get_order( $order_id );
+			if ( $order ) {
+				$orders[] = $order;
+			}
+		}
 
 		// Batch load region data to avoid N+1 queries.
 		$region_ids = array();
@@ -319,6 +335,9 @@ class RM_Orders {
 
 		if ( $region_id && isset( $regions_map[ $region_id ] ) ) {
 			$region_name = $regions_map[ $region_id ]['name'];
+		} elseif ( ! $region_id ) {
+			// Order without region.
+			$region_name = __( 'No Region', 'region-manager' );
 		}
 
 		if ( isset( $cross_region_map[ $order->get_id() ] ) ) {
@@ -389,8 +408,8 @@ class RM_Orders {
 	/**
 	 * Get total orders count.
 	 *
-	 * @param int   $region_id Region ID (null for all).
-	 * @param array $args Query arguments.
+	 * @param int|string $region_id Region ID (null for all, 'no_region' for orders without region).
+	 * @param array      $args Query arguments.
 	 * @return int Total count.
 	 */
 	public function get_orders_count( $region_id = null, $args = array() ) {
@@ -423,7 +442,10 @@ class RM_Orders {
 			$query_args['date_before'] = $args['date_before'];
 		}
 
-		if ( null !== $region_id ) {
+		if ( 'no_region' === $region_id ) {
+			// Count orders without region meta.
+			return $this->count_orders_without_region( $args );
+		} elseif ( null !== $region_id ) {
 			$query_args['meta_query'] = array(
 				array(
 					'key'   => '_rm_region_id',
@@ -435,6 +457,93 @@ class RM_Orders {
 
 		$orders = wc_get_orders( $query_args );
 		return count( $orders );
+	}
+
+	/**
+	 * Get orders that don't have region meta set.
+	 *
+	 * @param array $args Query arguments.
+	 * @return array Array of order IDs.
+	 */
+	private function get_orders_without_region( $args ) {
+		global $wpdb;
+
+		$limit  = $args['limit'] ?? 20;
+		$offset = ( ( $args['page'] ?? 1 ) - 1 ) * $limit;
+
+		// Check if HPOS (High-Performance Order Storage) is enabled.
+		if ( class_exists( 'Automattic\WooCommerce\Utilities\OrderUtil' ) &&
+			\Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) {
+
+			$orders_table = $wpdb->prefix . 'wc_orders';
+			$meta_table   = $wpdb->prefix . 'wc_orders_meta';
+
+			$query = $wpdb->prepare(
+				"SELECT o.id
+				FROM {$orders_table} o
+				LEFT JOIN {$meta_table} om ON o.id = om.order_id AND om.meta_key = '_rm_region_id'
+				WHERE om.meta_value IS NULL
+				AND o.type = 'shop_order'
+				ORDER BY o.date_created_gmt DESC
+				LIMIT %d OFFSET %d",
+				$limit,
+				$offset
+			);
+
+		} else {
+			// Legacy post-based orders.
+			$query = $wpdb->prepare(
+				"SELECT p.ID
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_rm_region_id'
+				WHERE p.post_type = 'shop_order'
+				AND pm.meta_value IS NULL
+				ORDER BY p.post_date DESC
+				LIMIT %d OFFSET %d",
+				$limit,
+				$offset
+			);
+		}
+
+		return $wpdb->get_col( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
+	 * Count orders without region.
+	 *
+	 * @param array $args Query arguments (for future filtering).
+	 * @return int Count of orders without region.
+	 */
+	public function count_orders_without_region( $args = array() ) {
+		global $wpdb;
+
+		// Check if HPOS is enabled.
+		if ( class_exists( 'Automattic\WooCommerce\Utilities\OrderUtil' ) &&
+			\Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) {
+
+			$orders_table = $wpdb->prefix . 'wc_orders';
+			$meta_table   = $wpdb->prefix . 'wc_orders_meta';
+
+			$count = $wpdb->get_var(
+				"SELECT COUNT(o.id)
+				FROM {$orders_table} o
+				LEFT JOIN {$meta_table} om ON o.id = om.order_id AND om.meta_key = '_rm_region_id'
+				WHERE om.meta_value IS NULL
+				AND o.type = 'shop_order'"
+			);
+
+		} else {
+			// Legacy post-based orders.
+			$count = $wpdb->get_var(
+				"SELECT COUNT(p.ID)
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_rm_region_id'
+				WHERE p.post_type = 'shop_order'
+				AND pm.meta_value IS NULL"
+			);
+		}
+
+		return intval( $count );
 	}
 
 	/**

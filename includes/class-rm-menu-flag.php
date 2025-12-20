@@ -83,15 +83,18 @@ class RM_Menu_Flag {
 	 */
 	private function render_flag_menu_item( $current_region, $regions, $settings ) {
 		$flag_emoji = '';
-		$region_name = __( 'Select Region', 'region-manager' );
+		$current_country_code = '';
 
 		if ( $current_region ) {
 			$countries = $this->get_region_countries( $current_region['id'] );
 			if ( ! empty( $countries ) ) {
-				$flag_emoji = $this->get_flag_emoji( $countries[0] );
+				$current_country_code = $countries[0];
+				$flag_emoji = $this->get_flag_emoji( $current_country_code );
 			}
-			$region_name = $current_region['name'];
 		}
+
+		// Get all countries from all active regions for dropdown.
+		$all_countries = $this->get_all_countries_for_dropdown();
 
 		ob_start();
 		?>
@@ -100,25 +103,21 @@ class RM_Menu_Flag {
 				<?php if ( $flag_emoji ) : ?>
 					<span class="rm-flag-emoji"><?php echo esc_html( $flag_emoji ); ?></span>
 				<?php endif; ?>
-				<?php if ( $settings['show_text'] ) : ?>
-					<span class="rm-region-name"><?php echo esc_html( $region_name ); ?></span>
+				<?php if ( $settings['show_dropdown'] ) : ?>
+					<span class="rm-dropdown-arrow">▼</span>
 				<?php endif; ?>
 			</a>
 			<?php if ( $settings['show_dropdown'] ) : ?>
 				<ul class="sub-menu rm-region-dropdown">
-					<?php foreach ( $regions as $region ) : ?>
+					<?php foreach ( $all_countries as $country ) : ?>
 						<?php
-						$countries       = $this->get_region_countries( $region['id'] );
-						$region_flag     = ! empty( $countries ) ? $this->get_flag_emoji( $countries[0] ) : '';
-						$is_current      = $current_region && $current_region['id'] === $region['id'];
-						$region_url      = $this->get_region_url( $region['slug'] );
+						$is_current  = $current_country_code === $country['country_code'];
+						$country_url = $this->get_region_url( $country['url_slug'] );
 						?>
 						<li class="menu-item <?php echo $is_current ? 'current-menu-item' : ''; ?>">
-							<a href="<?php echo esc_url( $region_url ); ?>">
-								<?php if ( $region_flag ) : ?>
-									<span class="rm-flag-emoji"><?php echo esc_html( $region_flag ); ?></span>
-								<?php endif; ?>
-								<span class="rm-region-name"><?php echo esc_html( $region['name'] ); ?></span>
+							<a href="<?php echo esc_url( $country_url ); ?>">
+								<span class="rm-flag-emoji"><?php echo esc_html( $this->get_flag_emoji( $country['country_code'] ) ); ?></span>
+								<span class="rm-country-name"><?php echo esc_html( $country['country_name'] ); ?></span>
 							</a>
 						</li>
 					<?php endforeach; ?>
@@ -209,6 +208,69 @@ class RM_Menu_Flag {
 		);
 
 		return $results;
+	}
+
+	/**
+	 * Get all countries from all active regions for dropdown.
+	 *
+	 * @return array Array of countries with country_code, country_name, url_slug.
+	 */
+	private function get_all_countries_for_dropdown() {
+		global $wpdb;
+
+		$table_regions = $wpdb->prefix . 'rm_regions';
+		$table_countries = $wpdb->prefix . 'rm_region_countries';
+
+		// Get all countries from active regions.
+		$countries = $wpdb->get_results(
+			"SELECT DISTINCT
+				rc.country_code,
+				rc.url_slug,
+				rc.language_code,
+				rc.region_id
+			FROM {$table_countries} rc
+			INNER JOIN {$table_regions} r ON rc.region_id = r.id
+			WHERE r.status = 'active'
+			ORDER BY rc.country_code ASC",
+			ARRAY_A
+		);
+
+		if ( empty( $countries ) ) {
+			return array();
+		}
+
+		// Get WooCommerce country names.
+		$wc_countries = function_exists( 'WC' ) && WC()->countries ? WC()->countries->get_countries() : array();
+
+		$display_countries = array();
+		$seen_codes = array(); // Prevent duplicates.
+
+		foreach ( $countries as $country ) {
+			// Skip if already added (same country in multiple regions).
+			if ( in_array( $country['country_code'], $seen_codes, true ) ) {
+				continue;
+			}
+
+			$seen_codes[] = $country['country_code'];
+
+			$display_countries[] = array(
+				'country_code' => $country['country_code'],
+				'country_name' => isset( $wc_countries[ $country['country_code'] ] ) ? $wc_countries[ $country['country_code'] ] : $country['country_code'],
+				'url_slug'     => $country['url_slug'],
+				'language_code' => $country['language_code'],
+				'region_id'    => $country['region_id'],
+			);
+		}
+
+		// Sort by country name alphabetically.
+		usort(
+			$display_countries,
+			function ( $a, $b ) {
+				return strcasecmp( $a['country_name'], $b['country_name'] );
+			}
+		);
+
+		return $display_countries;
 	}
 
 	/**

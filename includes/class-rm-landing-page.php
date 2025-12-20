@@ -60,8 +60,8 @@ class RM_Landing_Page {
 			return '';
 		}
 
-		$template = ! empty( $atts['template'] ) ? $atts['template'] : $settings['template'];
-		$regions  = $this->get_active_regions();
+		$template  = ! empty( $atts['template'] ) ? $atts['template'] : $settings['template'];
+		$countries = $this->get_countries_for_display();
 
 		ob_start();
 
@@ -85,8 +85,8 @@ class RM_Landing_Page {
 		return array(
 			'enabled'          => (bool) get_option( 'rm_landing_page_enabled', false ),
 			'template'         => get_option( 'rm_landing_page_template', 'default' ),
-			'title'            => get_option( 'rm_landing_page_title', __( 'Select Your Region', 'region-manager' ) ),
-			'description'      => get_option( 'rm_landing_page_description', __( 'Please choose your region to see relevant products and pricing.', 'region-manager' ) ),
+			'title'            => get_option( 'rm_landing_page_title', __( 'Select Your Country', 'region-manager' ) ),
+			'description'      => get_option( 'rm_landing_page_description', __( 'Please choose your country to see relevant products and pricing.', 'region-manager' ) ),
 			'auto_redirect'    => (bool) get_option( 'rm_landing_page_auto_redirect', false ),
 			'redirect_delay'   => absint( get_option( 'rm_landing_page_redirect_delay', 3 ) ),
 			'show_flags'       => (bool) get_option( 'rm_landing_page_show_flags', true ),
@@ -109,6 +109,72 @@ class RM_Landing_Page {
 		);
 
 		return $results;
+	}
+
+	/**
+	 * Get all countries from all active regions for display.
+	 *
+	 * @return array Array of countries with code, name, url_slug, language_code, flag_html, region_id.
+	 */
+	public function get_countries_for_display() {
+		global $wpdb;
+
+		$table_regions = $wpdb->prefix . 'rm_regions';
+		$table_countries = $wpdb->prefix . 'rm_region_countries';
+
+		// Get all countries from active regions.
+		$countries = $wpdb->get_results(
+			"SELECT DISTINCT
+				rc.country_code,
+				rc.url_slug,
+				rc.language_code,
+				rc.region_id
+			FROM {$table_countries} rc
+			INNER JOIN {$table_regions} r ON rc.region_id = r.id
+			WHERE r.status = 'active'
+			ORDER BY rc.country_code ASC",
+			ARRAY_A
+		);
+
+		if ( empty( $countries ) ) {
+			return array();
+		}
+
+		// Get WooCommerce country names.
+		$wc_countries = function_exists( 'WC' ) && WC()->countries ? WC()->countries->get_countries() : array();
+
+		$display_countries = array();
+		$seen_codes = array(); // Prevent duplicates.
+
+		foreach ( $countries as $country ) {
+			// Skip if already added (same country in multiple regions).
+			if ( in_array( $country['country_code'], $seen_codes, true ) ) {
+				continue;
+			}
+
+			$seen_codes[] = $country['country_code'];
+
+			$country_obj = (object) array(
+				'code'          => $country['country_code'],
+				'name'          => isset( $wc_countries[ $country['country_code'] ] ) ? $wc_countries[ $country['country_code'] ] : $country['country_code'],
+				'url_slug'      => $country['url_slug'],
+				'language_code' => $country['language_code'],
+				'flag_html'     => $this->get_flag_emoji( $country['country_code'] ),
+				'region_id'     => $country['region_id'],
+			);
+
+			$display_countries[] = $country_obj;
+		}
+
+		// Sort by country name alphabetically.
+		usort(
+			$display_countries,
+			function ( $a, $b ) {
+				return strcasecmp( $a->name, $b->name );
+			}
+		);
+
+		return $display_countries;
 	}
 
 	/**
