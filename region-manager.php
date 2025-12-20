@@ -105,6 +105,8 @@ require RM_PLUGIN_DIR . 'admin/class-rm-products.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-product-meta-box.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-orders.php';
 require RM_PLUGIN_DIR . 'admin/class-rm-customization.php';
+require RM_PLUGIN_DIR . 'admin/class-rm-regional-pages.php';
+require RM_PLUGIN_DIR . 'includes/class-rm-regional-router.php';
 require RM_PLUGIN_DIR . 'public/class-rm-public.php';
 
 /**
@@ -256,6 +258,7 @@ final class Region_Manager {
 		$product_meta_box     = new RM_Product_Meta_Box();
 		$plugin_orders        = new RM_Orders();
 		$plugin_customization = new RM_Customization( 'region-manager', RM_VERSION );
+		$regional_pages       = new RM_Regional_Pages();
 		$order_status         = new RM_Order_Status();
 
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_admin_menu' );
@@ -272,6 +275,10 @@ final class Region_Manager {
 		$this->loader->add_action( 'wp_ajax_rm_create_landing_page', $plugin_customization, 'create_landing_page' );
 		$this->loader->add_action( 'wp_ajax_rm_save_menu_flag_settings', $plugin_customization, 'save_menu_flag_settings' );
 		$this->loader->add_action( 'wp_ajax_rm_save_translator_settings', $plugin_customization, 'save_translator_settings' );
+
+		// Regional Pages AJAX handlers.
+		$this->loader->add_action( 'wp_ajax_rm_save_regional_pages', $regional_pages, 'ajax_save_pages' );
+		$this->loader->add_action( 'wp_ajax_rm_create_regional_page', $regional_pages, 'ajax_create_page' );
 	}
 
 	/**
@@ -290,9 +297,10 @@ final class Region_Manager {
 		$this->loader->add_action( 'wp_ajax_rm_set_region', $plugin_public, 'ajax_set_region' );
 		$this->loader->add_action( 'wp_ajax_nopriv_rm_set_region', $plugin_public, 'ajax_set_region' );
 
-		// Initialize Landing Page and Menu Flag.
+		// Initialize Landing Page, Menu Flag, and Regional Router.
 		RM_Landing_Page::get_instance();
 		RM_Menu_Flag::get_instance();
+		RM_Regional_Router::get_instance();
 	}
 
 	/**

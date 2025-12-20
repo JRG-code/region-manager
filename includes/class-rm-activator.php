@@ -108,6 +108,40 @@ class RM_Activator {
 
 		dbDelta( $sql_settings );
 
+		// Table: rm_regional_pages.
+		$sql_regional_pages = "CREATE TABLE {$table_prefix}rm_regional_pages (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			region_id bigint(20) unsigned NOT NULL,
+			page_type varchar(50) NOT NULL,
+			page_id bigint(20) unsigned NOT NULL,
+			is_active tinyint(1) NOT NULL DEFAULT 1,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY region_id (region_id),
+			KEY page_type (page_type),
+			KEY page_id (page_id),
+			UNIQUE KEY unique_region_page_type (region_id, page_type)
+		) $charset_collate;";
+
+		dbDelta( $sql_regional_pages );
+
+		// Table: rm_regional_content.
+		$sql_regional_content = "CREATE TABLE {$table_prefix}rm_regional_content (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			region_id bigint(20) unsigned NOT NULL,
+			content_key varchar(100) NOT NULL,
+			content_value longtext,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY region_id (region_id),
+			KEY content_key (content_key),
+			UNIQUE KEY unique_region_content (region_id, content_key)
+		) $charset_collate;";
+
+		dbDelta( $sql_regional_content );
+
 		// Store database version for future migrations.
 		update_option( 'rm_db_version', RM_VERSION );
 	}
