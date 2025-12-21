@@ -249,8 +249,19 @@ class RM_Regional_Pages {
 
 		// Save content blocks.
 		foreach ( $content as $content_key => $content_value ) {
-			$content_key   = sanitize_key( $content_key );
-			$content_value = wp_kses_post( $content_value );
+			$content_key = sanitize_key( $content_key );
+
+			// Use appropriate sanitization based on content type.
+			// HTML content blocks need wp_kses_post, simple values need sanitize_text_field.
+			$html_fields = array( 'shop_banner', 'welcome_message', 'shipping_info', 'footer' );
+
+			if ( in_array( $content_key, $html_fields, true ) ) {
+				// Rich content - allow HTML.
+				$content_value = wp_kses_post( $content_value );
+			} else {
+				// Simple values (like first_page_after_selection) - text only.
+				$content_value = sanitize_text_field( $content_value );
+			}
 
 			$wpdb->replace(
 				$table_content,

@@ -88,6 +88,19 @@ register_activation_hook( __FILE__, 'activate_region_manager' );
 register_deactivation_hook( __FILE__, 'deactivate_region_manager' );
 
 /**
+ * Declare compatibility with WooCommerce features.
+ */
+add_action(
+	'before_woocommerce_init',
+	function () {
+		if ( class_exists( '\Automattic\WooCommerce\Utilities\FeaturesUtil' ) ) {
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', __FILE__, true );
+		}
+	}
+);
+
+/**
  * The core plugin class.
  */
 require RM_PLUGIN_DIR . 'includes/class-rm-loader.php';
