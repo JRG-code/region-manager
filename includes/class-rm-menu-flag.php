@@ -103,9 +103,6 @@ class RM_Menu_Flag {
 				<?php if ( $flag_emoji ) : ?>
 					<span class="rm-flag-emoji"><?php echo esc_html( $flag_emoji ); ?></span>
 				<?php endif; ?>
-				<?php if ( $settings['show_dropdown'] ) : ?>
-					<span class="rm-dropdown-arrow">▼</span>
-				<?php endif; ?>
 			</a>
 			<?php if ( $settings['show_dropdown'] ) : ?>
 				<ul class="sub-menu rm-region-dropdown">
