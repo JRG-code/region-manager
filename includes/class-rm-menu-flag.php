@@ -41,6 +41,10 @@ class RM_Menu_Flag {
 		if ( $settings['enabled'] ) {
 			add_filter( 'wp_nav_menu_items', array( $this, 'add_flag_to_menu' ), 10, 2 );
 		}
+
+		// AJAX handler for menu dropdown country switch.
+		add_action( 'wp_ajax_rm_switch_country', array( $this, 'handle_switch_country' ) );
+		add_action( 'wp_ajax_nopriv_rm_switch_country', array( $this, 'handle_switch_country' ) );
 	}
 
 	/**
@@ -112,10 +116,13 @@ class RM_Menu_Flag {
 					<?php foreach ( $all_countries as $country ) : ?>
 						<?php
 						$is_current  = $current_country_code === $country['country_code'];
-						$country_url = $this->get_region_url( $country['url_slug'] );
 						?>
-						<li class="menu-item <?php echo $is_current ? 'current-menu-item' : ''; ?>">
-							<a href="<?php echo esc_url( $country_url ); ?>">
+						<li class="menu-item rm-dropdown-country-item <?php echo $is_current ? 'current-menu-item' : ''; ?>"
+						    data-country-code="<?php echo esc_attr( $country['country_code'] ); ?>"
+						    data-url-slug="<?php echo esc_attr( $country['url_slug'] ); ?>"
+						    data-language-code="<?php echo esc_attr( $country['language_code'] ); ?>"
+						    data-region-id="<?php echo esc_attr( $country['region_id'] ); ?>">
+							<a href="#" class="rm-menu-country-link">
 								<span class="rm-flag-emoji"><?php echo esc_html( $this->get_flag_emoji( $country['country_code'] ) ); ?></span>
 								<span class="rm-country-name"><?php echo esc_html( $country['country_name'] ); ?></span>
 							</a>
@@ -150,27 +157,49 @@ class RM_Menu_Flag {
 	 */
 	private function get_current_region() {
 		global $wpdb;
-		$table_name = $wpdb->prefix . 'rm_regions';
 
+		// Check for region_id in new cookies first.
+		$region_id = null;
+		if ( isset( $_COOKIE['rm_region_id'] ) && ! empty( $_COOKIE['rm_region_id'] ) ) {
+			$region_id = intval( $_COOKIE['rm_region_id'] );
+		} elseif ( function_exists( 'WC' ) && WC()->session ) {
+			$region_id = WC()->session->get( 'rm_current_region_id' );
+		}
+
+		if ( $region_id ) {
+			$region = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}rm_regions WHERE id = %d AND status = 'active'",
+					$region_id
+				),
+				ARRAY_A
+			);
+
+			if ( $region ) {
+				return $region;
+			}
+		}
+
+		// Fallback to old cookie for backward compatibility.
 		$region_slug = get_query_var( 'rm_region_slug', '' );
 
 		if ( empty( $region_slug ) && isset( $_COOKIE['rm_selected_region'] ) ) {
 			$region_slug = sanitize_text_field( wp_unslash( $_COOKIE['rm_selected_region'] ) );
 		}
 
-		if ( empty( $region_slug ) ) {
-			return null;
+		if ( ! empty( $region_slug ) ) {
+			$region = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}rm_regions WHERE slug = %s AND status = 'active'",
+					$region_slug
+				),
+				ARRAY_A
+			);
+
+			return $region;
 		}
 
-		$region = $wpdb->get_row(
-			$wpdb->prepare(
-				"SELECT * FROM {$table_name} WHERE slug = %s AND status = 'active'",
-				$region_slug
-			),
-			ARRAY_A
-		);
-
-		return $region;
+		return null;
 	}
 
 	/**
@@ -313,5 +342,88 @@ class RM_Menu_Flag {
 		</svg>';
 
 		return '<span class="rm-flag-emoji rm-flag-global" title="' . esc_attr__( 'Select your country', 'region-manager' ) . '">' . $globe_svg . '</span>';
+	}
+
+	/**
+	 * AJAX handler for switching country from menu dropdown.
+	 */
+	public function handle_switch_country() {
+		check_ajax_referer( 'rm_public_nonce', 'nonce' );
+
+		// Get parameters from request.
+		$country_code  = isset( $_POST['country_code'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_POST['country_code'] ) ) ) : '';
+		$url_slug      = isset( $_POST['url_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['url_slug'] ) ) : '';
+		$language_code = isset( $_POST['language_code'] ) ? sanitize_text_field( wp_unslash( $_POST['language_code'] ) ) : '';
+		$region_id     = isset( $_POST['region_id'] ) ? intval( $_POST['region_id'] ) : 0;
+
+		// DEBUG.
+		error_log( '========== RM DEBUG: handle_switch_country ==========' );
+		error_log( 'Country Code: ' . $country_code );
+		error_log( 'URL Slug: ' . $url_slug );
+		error_log( 'Language Code: ' . $language_code );
+		error_log( 'Region ID: ' . $region_id );
+
+		if ( empty( $country_code ) || empty( $url_slug ) ) {
+			error_log( 'ERROR: Missing required parameters' );
+			wp_send_json_error( array( 'message' => __( 'Invalid selection.', 'region-manager' ) ) );
+			return;
+		}
+
+		$url_slug = trim( $url_slug, '/' );
+
+		global $wpdb;
+
+		// If region_id not provided, look it up.
+		if ( ! $region_id ) {
+			$region_id = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT rc.region_id
+					 FROM {$wpdb->prefix}rm_region_countries rc
+					 INNER JOIN {$wpdb->prefix}rm_regions r ON rc.region_id = r.id
+					 WHERE rc.country_code = %s AND r.status = 'active'
+					 LIMIT 1",
+					$country_code
+				)
+			);
+		}
+
+		error_log( 'Region ID found: ' . ( $region_id ? $region_id : 'NULL' ) );
+
+		// Store in session if WooCommerce is available.
+		if ( function_exists( 'WC' ) && WC()->session ) {
+			WC()->session->set( 'rm_current_region_id', $region_id );
+			WC()->session->set( 'rm_current_country', $country_code );
+			WC()->session->set( 'rm_current_language', $language_code );
+			WC()->session->set( 'rm_current_url_slug', $url_slug );
+		}
+
+		// Store in cookies (30 days).
+		$cookie_expiry = time() + ( 30 * DAY_IN_SECONDS );
+		$cookie_path   = COOKIEPATH ? COOKIEPATH : '/';
+		$cookie_domain = COOKIE_DOMAIN ? COOKIE_DOMAIN : '';
+		$secure        = is_ssl();
+
+		setcookie( 'rm_region_id', $region_id, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+		setcookie( 'rm_country', $country_code, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+		setcookie( 'rm_language', $language_code, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+		setcookie( 'rm_url_slug', $url_slug, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+
+		// Get redirect URL using RegionalRouter - same logic as landing page.
+		$router       = RM_Regional_Router::get_instance();
+		$redirect_url = $router->get_redirect_url( $country_code, $url_slug, $language_code );
+
+		error_log( 'Final Redirect URL: ' . $redirect_url );
+		error_log( '========== RM DEBUG END ==========' );
+
+		wp_send_json_success(
+			array(
+				'message'      => __( 'Country selected successfully.', 'region-manager' ),
+				'redirect_url' => $redirect_url,
+				'country'      => $country_code,
+				'region_id'    => $region_id,
+				'language'     => $language_code,
+				'url_slug'     => $url_slug,
+			)
+		);
 	}
 }

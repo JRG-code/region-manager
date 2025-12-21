@@ -79,16 +79,29 @@ class RM_Regional_Router {
 		// Clean the URL slug.
 		$url_slug = trim( $url_slug, '/' );
 
+		// DEBUG.
+		error_log( '========== RM Router: get_redirect_url ==========' );
+		error_log( 'Country Code: ' . $country_code );
+		error_log( 'URL Slug: ' . $url_slug );
+		error_log( 'Language Code: ' . $language_code );
+
 		// Get region for this country.
 		$region_id = $this->get_region_id_by_country( $country_code );
 
+		error_log( 'Region ID from country: ' . ( $region_id ? $region_id : 'NULL' ) );
+
 		if ( ! $region_id ) {
 			// No region found, just go to homepage with URL slug.
-			return home_url( '/' . $url_slug . '/' );
+			$fallback_url = home_url( '/' . $url_slug . '/' );
+			error_log( 'No region found, fallback URL: ' . $fallback_url );
+			error_log( '========== RM Router END ==========' );
+			return $fallback_url;
 		}
 
 		// Get the "welcome" page setting from rm_regional_pages table.
 		$welcome_page_setting = $this->get_regional_page_setting( $region_id, 'welcome' );
+
+		error_log( 'Welcome page setting: ' . var_export( $welcome_page_setting, true ) );
 
 		// Determine the page path based on setting.
 		$page_path = '';
@@ -105,12 +118,16 @@ class RM_Regional_Router {
 			if ( empty( $page_path ) ) {
 				$page_path = 'shop';
 			}
+			error_log( 'Using shop page, path: ' . $page_path );
 		} elseif ( 'home' === $welcome_page_setting ) {
 			// Site homepage - no additional path.
 			$page_path = '';
+			error_log( 'Using home page, no additional path' );
 		} elseif ( is_numeric( $welcome_page_setting ) ) {
 			// Specific page ID.
 			$page_id = intval( $welcome_page_setting );
+
+			error_log( 'Using specific page ID: ' . $page_id );
 
 			if ( $page_id > 0 ) {
 				$page = get_post( $page_id );
@@ -118,12 +135,19 @@ class RM_Regional_Router {
 				if ( $page && 'publish' === $page->post_status ) {
 					// Get the full page path (handles hierarchical pages).
 					$page_path = $this->get_page_path( $page );
+					error_log( 'Page found: ' . $page->post_title . ', path: ' . $page_path );
+				} else {
+					error_log( 'Page not found or not published' );
 				}
 			}
 		}
 
 		// Build the final URL.
-		return $this->build_regional_url( $url_slug, $page_path );
+		$final_url = $this->build_regional_url( $url_slug, $page_path );
+		error_log( 'Final URL built: ' . $final_url );
+		error_log( '========== RM Router END ==========' );
+
+		return $final_url;
 	}
 
 	/**
@@ -190,6 +214,8 @@ class RM_Regional_Router {
 		$url_slug  = trim( $url_slug, '/' );
 		$page_path = trim( $page_path, '/' );
 
+		error_log( 'build_regional_url - URL slug: "' . $url_slug . '", Page path: "' . $page_path . '"' );
+
 		// Build path: /url_slug/page_path/.
 		$path = '/' . $url_slug;
 
@@ -202,7 +228,13 @@ class RM_Regional_Router {
 		// Clean up any double slashes.
 		$path = preg_replace( '#/+#', '/', $path );
 
-		return home_url( $path );
+		error_log( 'build_regional_url - Final path: "' . $path . '"' );
+
+		$full_url = home_url( $path );
+
+		error_log( 'build_regional_url - Full URL: "' . $full_url . '"' );
+
+		return $full_url;
 	}
 
 	/**
