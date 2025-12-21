@@ -24,11 +24,12 @@ $landing_page = RM_Landing_Page::get_instance();
 
 	<div class="rm-countries-grid">
 		<?php foreach ( $countries as $country ) : ?>
-			<?php
-			$country_url = home_url( '/' . $country->url_slug . '/' );
-			?>
-			<div class="rm-country-card" data-country-code="<?php echo esc_attr( $country->code ); ?>" data-url-slug="<?php echo esc_attr( $country->url_slug ); ?>">
-				<a href="<?php echo esc_url( $country_url ); ?>" class="rm-country-card-link">
+			<div class="rm-country-card"
+			     data-country-code="<?php echo esc_attr( $country->code ); ?>"
+			     data-url-slug="<?php echo esc_attr( $country->url_slug ); ?>"
+			     data-language-code="<?php echo esc_attr( $country->language_code ); ?>"
+			     data-region-id="<?php echo esc_attr( $country->region_id ); ?>">
+				<a href="#" class="rm-country-card-link">
 					<?php if ( $settings['show_flags'] && $country->flag_html ) : ?>
 						<div class="rm-country-flag-large"><?php echo esc_html( $country->flag_html ); ?></div>
 					<?php endif; ?>

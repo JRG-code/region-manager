@@ -12,7 +12,7 @@
 		/**
 		 * Handle region selection on landing page
 		 */
-		$('.rm-landing-page').on('click', '.rm-country-item, .rm-region-item, .rm-region-card, .rm-map-region, .rm-map-list-item', function(e) {
+		$('.rm-landing-page').on('click', '.rm-country-item, .rm-country-card, .rm-map-country, .rm-map-list-item', function(e) {
 			var $link = $(this).find('a');
 			var countryCode = $(this).data('country-code');
 			var urlSlug = $(this).data('url-slug');
