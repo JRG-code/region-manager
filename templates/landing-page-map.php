@@ -25,11 +25,12 @@ $landing_page = RM_Landing_Page::get_instance();
 	<div class="rm-map-container">
 		<div class="rm-map-visual">
 			<?php foreach ( $countries as $country ) : ?>
-				<?php
-				$country_url = home_url( '/' . $country->url_slug . '/' );
-				?>
-				<div class="rm-map-country" data-country-code="<?php echo esc_attr( $country->code ); ?>" data-url-slug="<?php echo esc_attr( $country->url_slug ); ?>">
-					<a href="<?php echo esc_url( $country_url ); ?>" class="rm-map-country-link">
+				<div class="rm-map-country"
+				     data-country-code="<?php echo esc_attr( $country->code ); ?>"
+				     data-url-slug="<?php echo esc_attr( $country->url_slug ); ?>"
+				     data-language-code="<?php echo esc_attr( $country->language_code ); ?>"
+				     data-region-id="<?php echo esc_attr( $country->region_id ); ?>">
+					<a href="#" class="rm-map-country-link">
 						<?php if ( $settings['show_flags'] && $country->flag_html ) : ?>
 							<span class="rm-map-flag"><?php echo esc_html( $country->flag_html ); ?></span>
 						<?php endif; ?>
@@ -43,11 +44,12 @@ $landing_page = RM_Landing_Page::get_instance();
 			<h3><?php esc_html_e( 'Available Countries', 'region-manager' ); ?></h3>
 			<ul class="rm-map-list">
 				<?php foreach ( $countries as $country ) : ?>
-					<?php
-					$country_url = home_url( '/' . $country->url_slug . '/' );
-					?>
-					<li class="rm-map-list-item" data-country-code="<?php echo esc_attr( $country->code ); ?>">
-						<a href="<?php echo esc_url( $country_url ); ?>">
+					<li class="rm-map-list-item"
+					    data-country-code="<?php echo esc_attr( $country->code ); ?>"
+					    data-url-slug="<?php echo esc_attr( $country->url_slug ); ?>"
+					    data-language-code="<?php echo esc_attr( $country->language_code ); ?>"
+					    data-region-id="<?php echo esc_attr( $country->region_id ); ?>">
+						<a href="#">
 							<?php if ( $settings['show_flags'] && $country->flag_html ) : ?>
 								<span class="rm-flag"><?php echo esc_html( $country->flag_html ); ?></span>
 							<?php endif; ?>
