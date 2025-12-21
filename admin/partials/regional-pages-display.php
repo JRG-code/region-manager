@@ -101,22 +101,31 @@ $all_pages              = $regional_pages_manager->get_all_wp_pages();
 					</td>
 				</tr>
 
-				<!-- Welcome Page -->
+				<!-- First Page After Country Selection -->
 				<tr>
 					<th scope="row">
-						<label><?php esc_html_e( 'Welcome Page', 'region-manager' ); ?></label>
-						<p class="description"><?php esc_html_e( 'First page after country selection (optional)', 'region-manager' ); ?></p>
+						<label><?php esc_html_e( 'First Page After Country Selection', 'region-manager' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Where users go after selecting their country', 'region-manager' ); ?></p>
 					</th>
 					<td>
 						<div class="rm-page-selector">
-							<select name="pages[welcome]" class="rm-page-dropdown">
-								<option value=""><?php esc_html_e( '— Skip (Go to Shop) —', 'region-manager' ); ?></option>
-								<?php foreach ( $all_pages as $page ) : ?>
-								<option value="<?php echo esc_attr( $page->ID ); ?>"
-										<?php selected( isset( $regional_pages['welcome'] ) ? $regional_pages['welcome']->page_id : '', $page->ID ); ?>>
-									<?php echo esc_html( $page->post_title ); ?>
+							<select name="pages[welcome]" class="rm-page-dropdown" id="rm-welcome-page-select">
+								<option value="shop" <?php selected( isset( $regional_pages['welcome'] ) ? $regional_pages['welcome']->page_id : '', 'shop' ); ?>>
+									<?php esc_html_e( '— Shop Page (Default) —', 'region-manager' ); ?>
 								</option>
-								<?php endforeach; ?>
+								<option value="home" <?php selected( isset( $regional_pages['welcome'] ) ? $regional_pages['welcome']->page_id : '', 'home' ); ?>>
+									<?php esc_html_e( '— Site Homepage —', 'region-manager' ); ?>
+								</option>
+
+								<optgroup label="<?php esc_attr_e( 'Select a specific page:', 'region-manager' ); ?>">
+									<?php foreach ( $all_pages as $page ) : ?>
+									<option value="<?php echo esc_attr( $page->ID ); ?>"
+											data-slug="<?php echo esc_attr( $page->post_name ); ?>"
+											<?php selected( isset( $regional_pages['welcome'] ) ? $regional_pages['welcome']->page_id : '', $page->ID ); ?>>
+										<?php echo esc_html( $page->post_title ); ?>
+									</option>
+									<?php endforeach; ?>
+								</optgroup>
 							</select>
 
 							<button type="button" class="button rm-create-page-btn"
@@ -126,19 +135,31 @@ $all_pages              = $regional_pages_manager->get_all_wp_pages();
 								<?php esc_html_e( 'Create New', 'region-manager' ); ?>
 							</button>
 
-							<?php if ( ! empty( $regional_pages['welcome']->page_id ) ) : ?>
-							<a href="<?php echo esc_url( get_edit_post_link( $regional_pages['welcome']->page_id ) ); ?>"
+							<?php
+							$welcome_page_id = isset( $regional_pages['welcome'] ) ? $regional_pages['welcome']->page_id : '';
+							if ( ! empty( $welcome_page_id ) && is_numeric( $welcome_page_id ) && $welcome_page_id > 0 ) :
+								?>
+							<a href="<?php echo esc_url( get_edit_post_link( $welcome_page_id ) ); ?>"
 							   class="button" target="_blank">
 								<span class="dashicons dashicons-edit"></span>
 								<?php esc_html_e( 'Edit', 'region-manager' ); ?>
 							</a>
-							<a href="<?php echo esc_url( get_permalink( $regional_pages['welcome']->page_id ) ); ?>"
+							<a href="<?php echo esc_url( get_permalink( $welcome_page_id ) ); ?>"
 							   class="button" target="_blank">
 								<span class="dashicons dashicons-external"></span>
 								<?php esc_html_e( 'View', 'region-manager' ); ?>
 							</a>
 							<?php endif; ?>
 						</div>
+
+						<p class="description" style="margin-top: 10px;">
+							<?php
+							$sample_country = $regional_pages_manager->get_first_country_for_region( $current_region );
+							$sample_slug    = trim( $sample_country->url_slug ?? 'pt', '/' );
+							?>
+							<strong><?php esc_html_e( 'Example URL:', 'region-manager' ); ?></strong>
+							<code id="rm-preview-url"><?php echo esc_html( home_url( '/' . $sample_slug . '/' ) ); ?></code>
+						</p>
 					</td>
 				</tr>
 
@@ -286,70 +307,6 @@ $all_pages              = $regional_pages_manager->get_all_wp_pages();
 							)
 						);
 						?>
-					</td>
-				</tr>
-			</table>
-		</div>
-
-		<!-- Section: After Country Selection -->
-		<div class="rm-section">
-			<h2><?php esc_html_e( 'After Country Selection', 'region-manager' ); ?></h2>
-			<p class="description">
-				<?php esc_html_e( 'Configure where users go after selecting their country on the landing page.', 'region-manager' ); ?>
-			</p>
-
-			<table class="form-table">
-				<tr>
-					<th scope="row">
-						<label for="rm_first_page"><?php esc_html_e( 'First Page After Selection', 'region-manager' ); ?></label>
-						<p class="description"><?php esc_html_e( 'The page users will see immediately after choosing their country.', 'region-manager' ); ?></p>
-					</th>
-					<td>
-						<select name="content[first_page_after_selection]" id="rm_first_page" class="rm-page-dropdown">
-							<option value="shop" <?php selected( $regional_content['first_page_after_selection'] ?? '', 'shop' ); ?>>
-								<?php esc_html_e( 'Shop Page (WooCommerce default)', 'region-manager' ); ?>
-							</option>
-							<option value="home" <?php selected( $regional_content['first_page_after_selection'] ?? '', 'home' ); ?>>
-								<?php esc_html_e( 'Site Homepage', 'region-manager' ); ?>
-							</option>
-
-							<optgroup label="<?php esc_attr_e( 'Select a specific page:', 'region-manager' ); ?>">
-								<?php foreach ( $all_pages as $page ) : ?>
-								<option value="page_<?php echo esc_attr( $page->ID ); ?>"
-										<?php selected( $regional_content['first_page_after_selection'] ?? '', 'page_' . $page->ID ); ?>>
-									<?php echo esc_html( $page->post_title ); ?>
-								</option>
-								<?php endforeach; ?>
-							</optgroup>
-						</select>
-
-						<p class="description" style="margin-top: 10px;">
-							<?php esc_html_e( 'Example: If you have a "Home" page that showcases featured products for this region, select it here.', 'region-manager' ); ?>
-						</p>
-					</td>
-				</tr>
-
-				<tr>
-					<th scope="row">
-						<label><?php esc_html_e( 'URL Structure', 'region-manager' ); ?></label>
-					</th>
-					<td>
-						<?php
-						$sample_country = $regional_pages_manager->get_first_country_for_region( $current_region );
-						$sample_slug    = $sample_country->url_slug ?? '/pt';
-						?>
-						<p class="description">
-							<?php
-							echo sprintf(
-								/* translators: %s: Example URL */
-								esc_html__( 'After selection, users will be redirected to: %s', 'region-manager' ),
-								'<code>' . esc_html( home_url( $sample_slug . '/' ) ) . '</code>'
-							);
-							?>
-						</p>
-						<p class="description">
-							<?php esc_html_e( 'The URL slug (e.g., /pt, /es) is automatically added based on the country selected.', 'region-manager' ); ?>
-						</p>
 					</td>
 				</tr>
 			</table>
@@ -579,8 +536,7 @@ jQuery(document).ready(function($) {
 					shop_banner: $('textarea[name="content[shop_banner]"]').val(),
 					welcome_message: $('textarea[name="content[welcome_message]"]').val(),
 					shipping_info: $('textarea[name="content[shipping_info]"]').val(),
-					footer: $('textarea[name="content[footer]"]').val(),
-					first_page_after_selection: $('select[name="content[first_page_after_selection]"]').val()
+					footer: $('textarea[name="content[footer]"]').val()
 				}
 			},
 			success: function(response) {
@@ -652,6 +608,27 @@ jQuery(document).ready(function($) {
 				$btn.prop('disabled', false).html(originalText);
 			}
 		});
+	});
+
+	// Update preview URL when welcome page selection changes
+	$('#rm-welcome-page-select').on('change', function() {
+		var selected = $(this).val();
+		var baseUrl = '<?php echo esc_js( home_url( '/' . $sample_slug ) ); ?>';
+		var pagePath = '';
+
+		if (selected === 'shop') {
+			pagePath = '/shop';
+		} else if (selected === 'home') {
+			pagePath = '';
+		} else if (selected && !isNaN(selected)) {
+			// It's a page ID - get the slug from the data attribute
+			var pageSlug = $(this).find('option:selected').data('slug');
+			if (pageSlug) {
+				pagePath = '/' + pageSlug;
+			}
+		}
+
+		$('#rm-preview-url').text(baseUrl + pagePath + '/');
 	});
 });
 </script>

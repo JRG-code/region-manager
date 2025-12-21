@@ -214,36 +214,40 @@ class RM_Regional_Pages {
 		$table_content = $wpdb->prefix . 'rm_regional_content';
 
 		// Save page assignments.
-		foreach ( $pages as $page_type => $page_id ) {
-			$page_id   = absint( $page_id );
-			$page_type = sanitize_key( $page_type );
+		foreach ( $pages as $page_type => $page_value ) {
+			$page_type  = sanitize_key( $page_type );
+			$page_value = sanitize_text_field( $page_value );
 
-			if ( $page_id > 0 ) {
-				$wpdb->replace(
+			// Delete existing entry first.
+			$wpdb->delete(
+				$table_pages,
+				array(
+					'region_id' => $region_id,
+					'page_type' => $page_type,
+				),
+				array( '%d', '%s' )
+			);
+
+			// Only insert if there's a value.
+			if ( ! empty( $page_value ) ) {
+				$wpdb->insert(
 					$table_pages,
 					array(
 						'region_id'  => $region_id,
 						'page_type'  => $page_type,
-						'page_id'    => $page_id,
+						'page_id'    => $page_value, // Can be numeric ID, 'shop', or 'home'.
 						'is_active'  => 1,
+						'created_at' => current_time( 'mysql' ),
 						'updated_at' => current_time( 'mysql' ),
 					),
-					array( '%d', '%s', '%d', '%d', '%s' )
+					array( '%d', '%s', '%s', '%d', '%s', '%s' )
 				);
 
-				// Update page meta.
-				update_post_meta( $page_id, '_rm_region_id', $region_id );
-				update_post_meta( $page_id, '_rm_page_type', $page_type );
-			} else {
-				// Remove assignment.
-				$wpdb->delete(
-					$table_pages,
-					array(
-						'region_id' => $region_id,
-						'page_type' => $page_type,
-					),
-					array( '%d', '%s' )
-				);
+				// Update page meta only if it's a numeric page ID.
+				if ( is_numeric( $page_value ) && $page_value > 0 ) {
+					update_post_meta( $page_value, '_rm_region_id', $region_id );
+					update_post_meta( $page_value, '_rm_page_type', $page_type );
+				}
 			}
 		}
 
