@@ -70,6 +70,67 @@
 		});
 
 		/**
+		 * Handle country selection from menu dropdown
+		 */
+		$(document).on('click', '.rm-dropdown-country-item .rm-menu-country-link', function(e) {
+			e.preventDefault();
+			e.stopPropagation();
+
+			var $item = $(this).closest('.rm-dropdown-country-item');
+			var countryCode = $item.data('country-code');
+			var urlSlug = $item.data('url-slug');
+			var languageCode = $item.data('language-code') || '';
+			var regionId = $item.data('region-id') || 0;
+
+			if (!countryCode || !urlSlug || !rmPublic) {
+				return;
+			}
+
+			// DEBUG
+			console.log('Menu country selection:', {
+				countryCode: countryCode,
+				urlSlug: urlSlug,
+				languageCode: languageCode,
+				regionId: regionId
+			});
+
+			// Close dropdown
+			$('.rm-menu-flag-item').removeClass('open');
+
+			// Show loading state
+			$(this).css('opacity', '0.5');
+
+			// Switch country via AJAX
+			$.ajax({
+				url: rmPublic.ajaxurl,
+				type: 'POST',
+				data: {
+					action: 'rm_switch_country',
+					nonce: rmPublic.nonce,
+					country_code: countryCode,
+					url_slug: urlSlug,
+					language_code: languageCode,
+					region_id: regionId
+				},
+				success: function(response) {
+					console.log('Switch response:', response);
+					if (response.success && response.data.redirect_url) {
+						console.log('Redirecting to:', response.data.redirect_url);
+						window.location.href = response.data.redirect_url;
+					} else {
+						alert('Error switching country');
+						$(this).css('opacity', '1');
+					}
+				},
+				error: function(xhr, status, error) {
+					console.error('Switch error:', error);
+					alert('Error: ' + error);
+					$(this).css('opacity', '1');
+				}
+			});
+		});
+
+		/**
 		 * Auto-redirect functionality
 		 */
 		if ($('.rm-landing-page').length > 0) {
