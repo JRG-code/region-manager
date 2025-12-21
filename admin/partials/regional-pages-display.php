@@ -291,48 +291,65 @@ $all_pages              = $regional_pages_manager->get_all_wp_pages();
 			</table>
 		</div>
 
-		<!-- Section: Redirect Settings -->
+		<!-- Section: After Country Selection -->
 		<div class="rm-section">
 			<h2><?php esc_html_e( 'After Country Selection', 'region-manager' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Configure where users go after selecting their country on the landing page.', 'region-manager' ); ?>
+			</p>
 
 			<table class="form-table">
 				<tr>
 					<th scope="row">
-						<label><?php esc_html_e( 'Redirect To', 'region-manager' ); ?></label>
+						<label for="rm_first_page"><?php esc_html_e( 'First Page After Selection', 'region-manager' ); ?></label>
+						<p class="description"><?php esc_html_e( 'The page users will see immediately after choosing their country.', 'region-manager' ); ?></p>
+					</th>
+					<td>
+						<select name="content[first_page_after_selection]" id="rm_first_page" class="rm-page-dropdown">
+							<option value="shop" <?php selected( $regional_content['first_page_after_selection'] ?? '', 'shop' ); ?>>
+								<?php esc_html_e( 'Shop Page (WooCommerce default)', 'region-manager' ); ?>
+							</option>
+							<option value="home" <?php selected( $regional_content['first_page_after_selection'] ?? '', 'home' ); ?>>
+								<?php esc_html_e( 'Site Homepage', 'region-manager' ); ?>
+							</option>
+
+							<optgroup label="<?php esc_attr_e( 'Select a specific page:', 'region-manager' ); ?>">
+								<?php foreach ( $all_pages as $page ) : ?>
+								<option value="page_<?php echo esc_attr( $page->ID ); ?>"
+										<?php selected( $regional_content['first_page_after_selection'] ?? '', 'page_' . $page->ID ); ?>>
+									<?php echo esc_html( $page->post_title ); ?>
+								</option>
+								<?php endforeach; ?>
+							</optgroup>
+						</select>
+
+						<p class="description" style="margin-top: 10px;">
+							<?php esc_html_e( 'Example: If you have a "Home" page that showcases featured products for this region, select it here.', 'region-manager' ); ?>
+						</p>
+					</td>
+				</tr>
+
+				<tr>
+					<th scope="row">
+						<label><?php esc_html_e( 'URL Structure', 'region-manager' ); ?></label>
 					</th>
 					<td>
 						<?php
-						$redirect_setting = $regional_content['redirect_after_selection'] ?? 'shop';
+						$sample_country = $regional_pages_manager->get_first_country_for_region( $current_region );
+						$sample_slug    = $sample_country->url_slug ?? '/pt';
 						?>
-						<fieldset>
-							<label>
-								<input type="radio" name="content[redirect_after_selection]"
-									   value="shop" <?php checked( $redirect_setting, 'shop' ); ?>>
-								<?php esc_html_e( 'Shop Page (Regional or Default)', 'region-manager' ); ?>
-							</label><br>
-
-							<label>
-								<input type="radio" name="content[redirect_after_selection]"
-									   value="welcome" <?php checked( $redirect_setting, 'welcome' ); ?>>
-								<?php esc_html_e( 'Welcome Page (if set)', 'region-manager' ); ?>
-							</label><br>
-
-							<label>
-								<input type="radio" name="content[redirect_after_selection]"
-									   value="home" <?php checked( $redirect_setting, 'home' ); ?>>
-								<?php esc_html_e( 'Homepage', 'region-manager' ); ?>
-							</label><br>
-
-							<label>
-								<input type="radio" name="content[redirect_after_selection]"
-									   value="custom" <?php checked( $redirect_setting, 'custom' ); ?>>
-								<?php esc_html_e( 'Custom URL:', 'region-manager' ); ?>
-								<input type="url" name="content[redirect_custom_url]"
-									   value="<?php echo esc_attr( $regional_content['redirect_custom_url'] ?? '' ); ?>"
-									   class="regular-text"
-									   placeholder="https://">
-							</label>
-						</fieldset>
+						<p class="description">
+							<?php
+							echo sprintf(
+								/* translators: %s: Example URL */
+								esc_html__( 'After selection, users will be redirected to: %s', 'region-manager' ),
+								'<code>' . esc_html( home_url( $sample_slug . '/' ) ) . '</code>'
+							);
+							?>
+						</p>
+						<p class="description">
+							<?php esc_html_e( 'The URL slug (e.g., /pt, /es) is automatically added based on the country selected.', 'region-manager' ); ?>
+						</p>
 					</td>
 				</tr>
 			</table>
@@ -563,8 +580,7 @@ jQuery(document).ready(function($) {
 					welcome_message: $('textarea[name="content[welcome_message]"]').val(),
 					shipping_info: $('textarea[name="content[shipping_info]"]').val(),
 					footer: $('textarea[name="content[footer]"]').val(),
-					redirect_after_selection: $('input[name="content[redirect_after_selection]"]:checked').val(),
-					redirect_custom_url: $('input[name="content[redirect_custom_url]"]').val()
+					first_page_after_selection: $('select[name="content[first_page_after_selection]"]').val()
 				}
 			},
 			success: function(response) {
