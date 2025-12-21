@@ -76,56 +76,133 @@ class RM_Regional_Router {
 	 * @return string Redirect URL.
 	 */
 	public function get_redirect_url( $country_code, $url_slug, $language_code ) {
+		// Clean the URL slug.
+		$url_slug = trim( $url_slug, '/' );
+
+		// Get region for this country.
 		$region_id = $this->get_region_id_by_country( $country_code );
 
 		if ( ! $region_id ) {
-			// No region found, go to homepage with URL slug.
-			return home_url( '/' . trim( $url_slug, '/' ) . '/' );
+			// No region found, just go to homepage with URL slug.
+			return home_url( '/' . $url_slug . '/' );
 		}
 
-		$first_page_setting = $this->get_regional_content( $region_id, 'first_page_after_selection' );
+		// Get the "welcome" page setting from rm_regional_pages table.
+		$welcome_page_setting = $this->get_regional_page_setting( $region_id, 'welcome' );
 
-		// Default to shop if not set.
-		if ( empty( $first_page_setting ) ) {
-			$first_page_setting = 'shop';
+		// Determine the page path based on setting.
+		$page_path = '';
+
+		if ( empty( $welcome_page_setting ) || 'shop' === $welcome_page_setting ) {
+			// Shop page.
+			$shop_page_id = function_exists( 'wc_get_page_id' ) ? wc_get_page_id( 'shop' ) : 0;
+			if ( $shop_page_id > 0 ) {
+				$shop_page = get_post( $shop_page_id );
+				if ( $shop_page ) {
+					$page_path = $shop_page->post_name;
+				}
+			}
+			if ( empty( $page_path ) ) {
+				$page_path = 'shop';
+			}
+		} elseif ( 'home' === $welcome_page_setting ) {
+			// Site homepage - no additional path.
+			$page_path = '';
+		} elseif ( is_numeric( $welcome_page_setting ) ) {
+			// Specific page ID.
+			$page_id = intval( $welcome_page_setting );
+
+			if ( $page_id > 0 ) {
+				$page = get_post( $page_id );
+
+				if ( $page && 'publish' === $page->post_status ) {
+					// Get the full page path (handles hierarchical pages).
+					$page_path = $this->get_page_path( $page );
+				}
+			}
 		}
 
-		$base_url = '';
+		// Build the final URL.
+		return $this->build_regional_url( $url_slug, $page_path );
+	}
 
-		switch ( $first_page_setting ) {
-			case 'shop':
-				// Use regional shop page if set, otherwise WooCommerce default.
-				$regional_shop = $this->get_regional_page( $region_id, 'shop' );
-				if ( $regional_shop ) {
-					$base_url = get_permalink( $regional_shop );
-				} elseif ( function_exists( 'wc_get_page_permalink' ) ) {
-					$base_url = wc_get_page_permalink( 'shop' );
-				}
-				break;
+	/**
+	 * Get regional page setting from rm_regional_pages table.
+	 *
+	 * @param int    $region_id Region ID.
+	 * @param string $page_type Page type (e.g., 'welcome', 'shop', 'categories').
+	 * @return string|null Page ID, 'shop', 'home', or null.
+	 */
+	private function get_regional_page_setting( $region_id, $page_type ) {
+		global $wpdb;
 
-			case 'home':
-				// Site homepage.
-				$base_url = home_url( '/' );
-				break;
+		$result = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT page_id FROM {$wpdb->prefix}rm_regional_pages
+				 WHERE region_id = %d AND page_type = %s AND is_active = 1",
+				$region_id,
+				$page_type
+			)
+		);
 
-			default:
-				// Check if it's a specific page (format: page_123).
-				if ( strpos( $first_page_setting, 'page_' ) === 0 ) {
-					$page_id = intval( str_replace( 'page_', '', $first_page_setting ) );
-					if ( $page_id > 0 ) {
-						$base_url = get_permalink( $page_id );
-					}
-				}
+		return $result;
+	}
 
-				// Fallback to homepage.
-				if ( empty( $base_url ) ) {
-					$base_url = home_url( '/' );
-				}
-				break;
+	/**
+	 * Get the full path for a page (handles parent/child pages).
+	 *
+	 * @param WP_Post $page Page object.
+	 * @return string Page path.
+	 */
+	private function get_page_path( $page ) {
+		// If page has no parent, just return the slug.
+		if ( empty( $page->post_parent ) ) {
+			return $page->post_name;
 		}
 
-		// Add URL slug to the URL.
-		return $this->add_url_slug( $base_url, $url_slug );
+		// Build path including parent pages.
+		$path_parts    = array( $page->post_name );
+		$current_page  = $page;
+		$max_depth     = 10; // Prevent infinite loops.
+		$current_depth = 0;
+
+		while ( $current_page->post_parent > 0 && $current_depth < $max_depth ) {
+			$parent = get_post( $current_page->post_parent );
+			if ( ! $parent ) {
+				break;
+			}
+			array_unshift( $path_parts, $parent->post_name );
+			$current_page = $parent;
+			$current_depth++;
+		}
+
+		return implode( '/', $path_parts );
+	}
+
+	/**
+	 * Build the final URL with region slug and page path.
+	 *
+	 * @param string $url_slug Region URL slug (e.g., 'pt').
+	 * @param string $page_path Page path (e.g., 'home' or 'shop' or 'parent/child').
+	 * @return string Full URL.
+	 */
+	private function build_regional_url( $url_slug, $page_path = '' ) {
+		$url_slug  = trim( $url_slug, '/' );
+		$page_path = trim( $page_path, '/' );
+
+		// Build path: /url_slug/page_path/.
+		$path = '/' . $url_slug;
+
+		if ( ! empty( $page_path ) ) {
+			$path .= '/' . $page_path;
+		}
+
+		$path .= '/';
+
+		// Clean up any double slashes.
+		$path = preg_replace( '#/+#', '/', $path );
+
+		return home_url( $path );
 	}
 
 	/**

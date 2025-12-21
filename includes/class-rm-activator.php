@@ -113,7 +113,7 @@ class RM_Activator {
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			region_id bigint(20) unsigned NOT NULL,
 			page_type varchar(50) NOT NULL,
-			page_id bigint(20) unsigned NOT NULL,
+			page_id varchar(50) NOT NULL,
 			is_active tinyint(1) NOT NULL DEFAULT 1,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -125,6 +125,13 @@ class RM_Activator {
 		) $charset_collate;";
 
 		dbDelta( $sql_regional_pages );
+
+		// Upgrade existing table to support 'shop' and 'home' values.
+		$column_info = $wpdb->get_row( "SHOW COLUMNS FROM {$table_prefix}rm_regional_pages WHERE Field = 'page_id'" );
+		if ( $column_info && false !== stripos( $column_info->Type, 'int' ) ) {
+			// Column is INT, need to change to VARCHAR.
+			$wpdb->query( "ALTER TABLE {$table_prefix}rm_regional_pages MODIFY COLUMN page_id VARCHAR(50) NOT NULL" );
+		}
 
 		// Table: rm_regional_content.
 		$sql_regional_content = "CREATE TABLE {$table_prefix}rm_regional_content (
