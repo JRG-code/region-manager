@@ -82,15 +82,20 @@ class RM_Menu_Flag {
 	 * @return string HTML output.
 	 */
 	private function render_flag_menu_item( $current_region, $regions, $settings ) {
-		$flag_emoji = '';
+		$flag_html = '';
 		$current_country_code = '';
 
 		if ( $current_region ) {
 			$countries = $this->get_region_countries( $current_region['id'] );
 			if ( ! empty( $countries ) ) {
 				$current_country_code = $countries[0];
-				$flag_emoji = $this->get_flag_emoji( $current_country_code );
+				$flag_html = '<span class="rm-flag-emoji">' . esc_html( $this->get_flag_emoji( $current_country_code ) ) . '</span>';
 			}
+		}
+
+		// If no country selected, show globe icon.
+		if ( empty( $flag_html ) ) {
+			$flag_html = $this->get_global_flag_html();
 		}
 
 		// Get all countries from all active regions for dropdown.
@@ -98,11 +103,9 @@ class RM_Menu_Flag {
 
 		ob_start();
 		?>
-		<li class="menu-item rm-menu-flag-item">
+		<li class="menu-item rm-menu-flag-item <?php echo $current_country_code ? 'rm-has-country' : 'rm-no-country'; ?>">
 			<a href="#" class="rm-menu-flag-link">
-				<?php if ( $flag_emoji ) : ?>
-					<span class="rm-flag-emoji"><?php echo esc_html( $flag_emoji ); ?></span>
-				<?php endif; ?>
+				<?php echo $flag_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			</a>
 			<?php if ( $settings['show_dropdown'] ) : ?>
 				<ul class="sub-menu rm-region-dropdown">
@@ -295,5 +298,20 @@ class RM_Menu_Flag {
 	 */
 	private function get_region_url( $region_slug ) {
 		return home_url( '/' . $region_slug . '/' );
+	}
+
+	/**
+	 * Get global/world flag for unselected state.
+	 *
+	 * @return string HTML for globe icon.
+	 */
+	private function get_global_flag_html() {
+		$globe_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="rm-flag-globe">
+			<circle cx="12" cy="12" r="10"></circle>
+			<line x1="2" y1="12" x2="22" y2="12"></line>
+			<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+		</svg>';
+
+		return '<span class="rm-flag-emoji rm-flag-global" title="' . esc_attr__( 'Select your country', 'region-manager' ) . '">' . $globe_svg . '</span>';
 	}
 }

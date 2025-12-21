@@ -284,6 +284,21 @@
 	padding: 2px;
 }
 
+.rm-flag-global {
+	color: #666;
+	opacity: 0.85;
+}
+
+.rm-flag-global:hover {
+	opacity: 1;
+	color: #2271b1;
+}
+
+.rm-flag-globe {
+	display: inline-block;
+	vertical-align: middle;
+}
+
 .rm-menu-flag-link:hover .rm-flag-emoji {
 	transform: scale(1.1);
 	filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));

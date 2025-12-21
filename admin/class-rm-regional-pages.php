@@ -285,4 +285,24 @@ class RM_Regional_Pages {
 				return '';
 		}
 	}
+
+	/**
+	 * Get first country for a region (for URL preview).
+	 *
+	 * @param int $region_id Region ID.
+	 * @return object|null Country object or null.
+	 */
+	public function get_first_country_for_region( $region_id ) {
+		global $wpdb;
+
+		return $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}rm_region_countries
+				 WHERE region_id = %d
+				 ORDER BY is_default DESC, id ASC
+				 LIMIT 1",
+				$region_id
+			)
+		);
+	}
 }

@@ -79,47 +79,53 @@ class RM_Regional_Router {
 		$region_id = $this->get_region_id_by_country( $country_code );
 
 		if ( ! $region_id ) {
-			return home_url( $url_slug );
+			// No region found, go to homepage with URL slug.
+			return home_url( '/' . trim( $url_slug, '/' ) . '/' );
 		}
 
-		$redirect_setting = $this->get_regional_content( $region_id, 'redirect_after_selection' );
+		$first_page_setting = $this->get_regional_content( $region_id, 'first_page_after_selection' );
 
-		switch ( $redirect_setting ) {
-			case 'welcome':
-				$welcome_page = $this->get_regional_page( $region_id, 'welcome' );
-				if ( $welcome_page ) {
-					return $this->add_url_slug( get_permalink( $welcome_page ), $url_slug );
-				}
-				// Fall through to shop if no welcome page.
+		// Default to shop if not set.
+		if ( empty( $first_page_setting ) ) {
+			$first_page_setting = 'shop';
+		}
 
+		$base_url = '';
+
+		switch ( $first_page_setting ) {
 			case 'shop':
-				$shop_page = $this->get_regional_page( $region_id, 'shop' );
-				if ( $shop_page ) {
-					return $this->add_url_slug( get_permalink( $shop_page ), $url_slug );
+				// Use regional shop page if set, otherwise WooCommerce default.
+				$regional_shop = $this->get_regional_page( $region_id, 'shop' );
+				if ( $regional_shop ) {
+					$base_url = get_permalink( $regional_shop );
+				} elseif ( function_exists( 'wc_get_page_permalink' ) ) {
+					$base_url = wc_get_page_permalink( 'shop' );
 				}
-				if ( function_exists( 'wc_get_page_permalink' ) ) {
-					return $this->add_url_slug( wc_get_page_permalink( 'shop' ), $url_slug );
-				}
-				return home_url( $url_slug );
+				break;
 
 			case 'home':
-				return home_url( $url_slug );
-
-			case 'custom':
-				$custom_url = $this->get_regional_content( $region_id, 'redirect_custom_url' );
-				if ( $custom_url ) {
-					return $this->add_url_slug( $custom_url, $url_slug );
-				}
-				return home_url( $url_slug );
+				// Site homepage.
+				$base_url = home_url( '/' );
+				break;
 
 			default:
-				// Default to shop page.
-				$shop_page = $this->get_regional_page( $region_id, 'shop' );
-				if ( $shop_page ) {
-					return $this->add_url_slug( get_permalink( $shop_page ), $url_slug );
+				// Check if it's a specific page (format: page_123).
+				if ( strpos( $first_page_setting, 'page_' ) === 0 ) {
+					$page_id = intval( str_replace( 'page_', '', $first_page_setting ) );
+					if ( $page_id > 0 ) {
+						$base_url = get_permalink( $page_id );
+					}
 				}
-				return home_url( $url_slug );
+
+				// Fallback to homepage.
+				if ( empty( $base_url ) ) {
+					$base_url = home_url( '/' );
+				}
+				break;
 		}
+
+		// Add URL slug to the URL.
+		return $this->add_url_slug( $base_url, $url_slug );
 	}
 
 	/**
