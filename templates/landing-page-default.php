@@ -27,7 +27,7 @@ $landing_page = RM_Landing_Page::get_instance();
 			<?php
 			$country_url = home_url( '/' . $country->url_slug . '/' );
 			?>
-			<div class="rm-country-item" data-country-code="<?php echo esc_attr( $country->code ); ?>" data-url-slug="<?php echo esc_attr( $country->url_slug ); ?>">
+			<div class="rm-country-item" data-country-code="<?php echo esc_attr( $country->code ); ?>" data-url-slug="<?php echo esc_attr( $country->url_slug ); ?>" data-language-code="<?php echo esc_attr( $country->language_code ); ?>">
 				<a href="<?php echo esc_url( $country_url ); ?>" class="rm-country-link">
 					<?php if ( $settings['show_flags'] && $country->flag_html ) : ?>
 						<span class="rm-country-flag"><?php echo esc_html( $country->flag_html ); ?></span>

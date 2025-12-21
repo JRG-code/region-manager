@@ -12,12 +12,30 @@
 		/**
 		 * Handle region selection on landing page
 		 */
-		$('.rm-landing-page').on('click', '.rm-region-item, .rm-region-card, .rm-map-region, .rm-map-list-item', function(e) {
+		$('.rm-landing-page').on('click', '.rm-country-item, .rm-region-item, .rm-region-card, .rm-map-region, .rm-map-list-item', function(e) {
 			var $link = $(this).find('a');
-			var regionSlug = $(this).data('region-slug');
+			var countryCode = $(this).data('country-code');
+			var urlSlug = $(this).data('url-slug');
+			var languageCode = $(this).data('language-code') || '';
 
-			if (regionSlug && rmPublic) {
+			// Fallback to old region-slug for compatibility
+			if (!countryCode && !urlSlug) {
+				var regionSlug = $(this).data('region-slug');
+				if (regionSlug) {
+					countryCode = regionSlug.toUpperCase();
+					urlSlug = regionSlug;
+				}
+			}
+
+			if (countryCode && urlSlug && rmPublic) {
 				e.preventDefault();
+
+				// DEBUG
+				console.log('Country selection:', {
+					countryCode: countryCode,
+					urlSlug: urlSlug,
+					languageCode: languageCode
+				});
 
 				// Set region via AJAX
 				$.ajax({
@@ -26,11 +44,15 @@
 					data: {
 						action: 'rm_set_region',
 						nonce: rmPublic.nonce,
-						region_slug: regionSlug
+						country_code: countryCode,
+						url_slug: urlSlug,
+						language_code: languageCode
 					},
 					success: function(response) {
+						console.log('AJAX response:', response);
 						if (response.success) {
 							// Redirect to region URL
+							console.log('Redirecting to:', response.data.redirect_url);
 							window.location.href = response.data.redirect_url;
 						} else {
 							console.error('Region selection failed:', response.data.message);
@@ -38,7 +60,8 @@
 							window.location.href = $link.attr('href');
 						}
 					},
-					error: function() {
+					error: function(xhr, status, error) {
+						console.error('AJAX error:', error);
 						// Fallback to direct link on error
 						window.location.href = $link.attr('href');
 					}

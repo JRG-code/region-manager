@@ -82,37 +82,75 @@ class RM_Public {
 	public function ajax_set_region() {
 		check_ajax_referer( 'rm_public_nonce', 'nonce' );
 
-		$region_slug = isset( $_POST['region_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['region_slug'] ) ) : '';
+		// Get parameters from request.
+		$country_code  = isset( $_POST['country_code'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_POST['country_code'] ) ) ) : '';
+		$url_slug      = isset( $_POST['url_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['url_slug'] ) ) : '';
+		$language_code = isset( $_POST['language_code'] ) ? sanitize_text_field( wp_unslash( $_POST['language_code'] ) ) : '';
 
-		if ( empty( $region_slug ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid region.', 'region-manager' ) ) );
+		// DEBUG.
+		error_log( '========== RM DEBUG: ajax_set_region ==========' );
+		error_log( 'Country Code: ' . $country_code );
+		error_log( 'URL Slug: ' . $url_slug );
+		error_log( 'Language Code: ' . $language_code );
+
+		if ( empty( $country_code ) || empty( $url_slug ) ) {
+			error_log( 'ERROR: Missing required parameters' );
+			wp_send_json_error( array( 'message' => __( 'Invalid selection.', 'region-manager' ) ) );
+			return;
 		}
+
+		$url_slug = trim( $url_slug, '/' );
 
 		global $wpdb;
-		$table_name = $wpdb->prefix . 'rm_regions';
 
-		$region = $wpdb->get_row(
+		// Get region ID for this country.
+		$region_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT * FROM {$table_name} WHERE slug = %s AND status = 'active'",
-				$region_slug
-			),
-			ARRAY_A
+				"SELECT rc.region_id
+				 FROM {$wpdb->prefix}rm_region_countries rc
+				 INNER JOIN {$wpdb->prefix}rm_regions r ON rc.region_id = r.id
+				 WHERE rc.country_code = %s AND r.status = 'active'
+				 LIMIT 1",
+				$country_code
+			)
 		);
 
-		if ( ! $region ) {
-			wp_send_json_error( array( 'message' => __( 'Region not found.', 'region-manager' ) ) );
+		error_log( 'Region ID found: ' . ( $region_id ? $region_id : 'NULL' ) );
+
+		// Store in session if WooCommerce is available.
+		if ( function_exists( 'WC' ) && WC()->session ) {
+			WC()->session->set( 'rm_current_region_id', $region_id );
+			WC()->session->set( 'rm_current_country', $country_code );
+			WC()->session->set( 'rm_current_language', $language_code );
+			WC()->session->set( 'rm_current_url_slug', $url_slug );
 		}
 
-		// Set cookie for 30 days.
-		setcookie( 'rm_selected_region', $region_slug, time() + ( 30 * DAY_IN_SECONDS ), '/' );
+		// Store in cookies (30 days).
+		$cookie_expiry = time() + ( 30 * DAY_IN_SECONDS );
+		$cookie_path   = COOKIEPATH ? COOKIEPATH : '/';
+		$cookie_domain = COOKIE_DOMAIN ? COOKIE_DOMAIN : '';
+		$secure        = is_ssl();
 
-		$redirect_url = home_url( '/' . $region_slug . '/' );
+		setcookie( 'rm_region_id', $region_id, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+		setcookie( 'rm_country', $country_code, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+		setcookie( 'rm_language', $language_code, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+		setcookie( 'rm_url_slug', $url_slug, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+
+		// Get redirect URL using RegionalRouter.
+		$router       = RM_Regional_Router::get_instance();
+		$redirect_url = $router->get_redirect_url( $country_code, $url_slug, $language_code );
+
+		error_log( 'Final Redirect URL: ' . $redirect_url );
+		error_log( '========== RM DEBUG END ==========' );
 
 		wp_send_json_success(
 			array(
-				'message'      => __( 'Region selected successfully.', 'region-manager' ),
-				'region'       => $region,
+				'message'      => __( 'Country selected successfully.', 'region-manager' ),
 				'redirect_url' => $redirect_url,
+				'country'      => $country_code,
+				'region_id'    => $region_id,
+				'language'     => $language_code,
+				'url_slug'     => $url_slug,
 			)
 		);
 	}
