@@ -65,38 +65,39 @@ class RM_Rewrite {
 	public function register_rewrite_rules() {
 		global $wpdb;
 
-		// Get all active regions with URL slugs.
-		$regions = $wpdb->get_results(
-			"SELECT DISTINCT r.slug
-			FROM {$wpdb->prefix}rm_regions r
-			WHERE r.status = 'active' AND r.slug IS NOT NULL AND r.slug != ''
-			ORDER BY r.slug ASC",
+		// Get all active country URL slugs (not region slugs).
+		$url_slugs = $wpdb->get_results(
+			"SELECT DISTINCT rc.url_slug
+			FROM {$wpdb->prefix}rm_region_countries rc
+			INNER JOIN {$wpdb->prefix}rm_regions r ON rc.region_id = r.id
+			WHERE r.status = 'active' AND rc.url_slug IS NOT NULL AND rc.url_slug != ''
+			ORDER BY rc.url_slug ASC",
 			ARRAY_A
 		);
 
-		if ( ! $regions ) {
+		if ( ! $url_slugs ) {
 			return;
 		}
 
-		foreach ( $regions as $region ) {
-			$slug = $region['slug'];
+		foreach ( $url_slugs as $row ) {
+			$slug = $row['url_slug'];
 
 			// Main region root.
 			add_rewrite_rule(
 				'^' . $slug . '/?$',
-				'index.php?rm_region_slug=' . $slug,
+				'index.php?rm_url_slug=' . $slug,
 				'top'
 			);
 
 			// Region + any path.
 			add_rewrite_rule(
 				'^' . $slug . '/(.+)$',
-				'index.php?rm_region_slug=' . $slug . '&__rm_path=$matches[1]',
+				'index.php?rm_url_slug=' . $slug . '&__rm_path=$matches[1]',
 				'top'
 			);
 		}
 
-		$this->log_debug( 'Rewrite rules registered for regions: ' . implode( ', ', wp_list_pluck( $regions, 'slug' ) ) );
+		$this->log_debug( 'Rewrite rules registered for URL slugs: ' . implode( ', ', wp_list_pluck( $url_slugs, 'url_slug' ) ) );
 	}
 
 	/**
@@ -110,7 +111,8 @@ class RM_Rewrite {
 			$vars = array();
 		}
 
-		$vars[] = 'rm_region_slug';
+		$vars[] = 'rm_region_slug'; // Keep for backward compatibility.
+		$vars[] = 'rm_url_slug'; // New query var for country URL slugs.
 		$vars[] = '__rm_path';
 
 		return $vars;
@@ -122,31 +124,54 @@ class RM_Rewrite {
 	 * Detects region from URL and sets it in session.
 	 */
 	public function set_region_from_query() {
-		$region_slug = get_query_var( 'rm_region_slug' );
+		// Try new URL slug query var first.
+		$url_slug = get_query_var( 'rm_url_slug' );
 
-		if ( empty( $region_slug ) ) {
+		// Fallback to old region_slug for backward compatibility.
+		if ( empty( $url_slug ) ) {
+			$url_slug = get_query_var( 'rm_region_slug' );
+		}
+
+		if ( empty( $url_slug ) ) {
 			return;
 		}
 
-		$this->log_debug( 'Region slug from query: ' . $region_slug );
+		$this->log_debug( 'URL slug from query: ' . $url_slug );
 
-		// Get region by slug.
+		// Get country and region by URL slug.
 		global $wpdb;
-		$region = $wpdb->get_row(
+		$country = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, slug FROM {$wpdb->prefix}rm_regions WHERE slug = %s AND status = 'active' LIMIT 1",
-				$region_slug
+				"SELECT rc.country_code, rc.url_slug, rc.language_code, rc.region_id, r.slug as region_slug
+				FROM {$wpdb->prefix}rm_region_countries rc
+				INNER JOIN {$wpdb->prefix}rm_regions r ON rc.region_id = r.id
+				WHERE rc.url_slug = %s AND r.status = 'active'
+				LIMIT 1",
+				$url_slug
 			)
 		);
 
-		if ( $region ) {
-			// Store in WC session.
+		if ( $country ) {
+			// Store in WC session using new format.
 			if ( function_exists( 'WC' ) && WC()->session ) {
-				WC()->session->set( 'rm_current_region', $region->id );
-				WC()->session->set( 'rm_current_url_slug', $region->slug );
+				WC()->session->set( 'rm_current_region_id', $country->region_id );
+				WC()->session->set( 'rm_current_country', $country->country_code );
+				WC()->session->set( 'rm_current_url_slug', $country->url_slug );
+				WC()->session->set( 'rm_current_language', $country->language_code );
 			}
 
-			$this->log_debug( 'Region set from query: ID=' . $region->id . ', Slug=' . $region->slug );
+			// Also set cookies.
+			$cookie_expiry = time() + ( 30 * DAY_IN_SECONDS );
+			$cookie_path   = COOKIEPATH ? COOKIEPATH : '/';
+			$cookie_domain = COOKIE_DOMAIN ? COOKIE_DOMAIN : '';
+			$secure        = is_ssl();
+
+			setcookie( 'rm_region_id', $country->region_id, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+			setcookie( 'rm_country', $country->country_code, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+			setcookie( 'rm_url_slug', $country->url_slug, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+			setcookie( 'rm_language', $country->language_code, $cookie_expiry, $cookie_path, $cookie_domain, $secure, true );
+
+			$this->log_debug( 'Country/Region set from query: Country=' . $country->country_code . ', Region ID=' . $country->region_id . ', URL Slug=' . $country->url_slug );
 
 			// Handle nested path if present.
 			$nested_path = get_query_var( '__rm_path' );
