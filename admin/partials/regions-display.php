@@ -205,6 +205,7 @@ $license_info = $license->get_license_info();
 									<th><?php esc_html_e( 'Country', 'region-manager' ); ?></th>
 									<th><?php esc_html_e( 'URL Slug', 'region-manager' ); ?></th>
 									<th><?php esc_html_e( 'Language', 'region-manager' ); ?></th>
+									<th><?php esc_html_e( 'Currency', 'region-manager' ); ?></th>
 									<th style="text-align: center;"><?php esc_html_e( 'Default', 'region-manager' ); ?></th>
 									<th style="text-align: center;"><?php esc_html_e( 'Action', 'region-manager' ); ?></th>
 								</tr>
@@ -245,4 +246,22 @@ $license_info = $license->get_license_info();
 		'zh_CN': 'Chinese (Simplified)',
 		'ko_KR': 'Korean'
 	};
+
+	// Currency codes from WooCommerce
+	var rmCurrencyCodes = <?php
+		if ( function_exists( 'get_woocommerce_currencies' ) ) {
+			echo wp_json_encode( get_woocommerce_currencies() );
+		} else {
+			echo '{}';
+		}
+	?>;
+
+	// Currency symbols from WooCommerce
+	var rmCurrencySymbols = <?php
+		if ( function_exists( 'get_woocommerce_currency_symbols' ) ) {
+			echo wp_json_encode( get_woocommerce_currency_symbols() );
+		} else {
+			echo '{}';
+		}
+	?>;
 </script>

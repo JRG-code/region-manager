@@ -65,16 +65,25 @@ class RM_Activator {
 			country_code varchar(2) NOT NULL,
 			url_slug varchar(10) NOT NULL,
 			language_code varchar(10) NOT NULL,
+			currency_code varchar(3) DEFAULT 'EUR',
 			is_default tinyint(1) NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			KEY region_id (region_id),
 			KEY country_code (country_code),
 			KEY url_slug (url_slug),
+			KEY currency_code (currency_code),
 			UNIQUE KEY unique_region_country (region_id, country_code)
 		) $charset_collate;";
 
 		dbDelta( $sql_countries );
+
+		// Upgrade: Add currency_code to existing rm_region_countries table.
+		$column_check = $wpdb->get_row( "SHOW COLUMNS FROM {$table_prefix}rm_region_countries WHERE Field = 'currency_code'" );
+		if ( ! $column_check ) {
+			$wpdb->query( "ALTER TABLE {$table_prefix}rm_region_countries ADD COLUMN currency_code VARCHAR(3) DEFAULT 'EUR' AFTER language_code" );
+			$wpdb->query( "ALTER TABLE {$table_prefix}rm_region_countries ADD KEY currency_code (currency_code)" );
+		}
 
 		// Table: rm_product_regions.
 		$sql_product_regions = "CREATE TABLE {$table_prefix}rm_product_regions (
@@ -93,6 +102,25 @@ class RM_Activator {
 		) $charset_collate;";
 
 		dbDelta( $sql_product_regions );
+
+		// Table: rm_product_country_prices (country-specific pricing).
+		$sql_product_country_prices = "CREATE TABLE {$table_prefix}rm_product_country_prices (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			product_id bigint(20) unsigned NOT NULL,
+			country_code varchar(2) NOT NULL,
+			price decimal(10,2) DEFAULT NULL,
+			sale_price decimal(10,2) DEFAULT NULL,
+			currency_code varchar(3) DEFAULT 'EUR',
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY product_id (product_id),
+			KEY country_code (country_code),
+			KEY currency_code (currency_code),
+			UNIQUE KEY unique_product_country (product_id, country_code)
+		) $charset_collate;";
+
+		dbDelta( $sql_product_country_prices );
 
 		// Table: rm_region_settings.
 		$sql_settings = "CREATE TABLE {$table_prefix}rm_region_settings (

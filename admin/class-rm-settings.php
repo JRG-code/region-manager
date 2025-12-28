@@ -252,6 +252,7 @@ class RM_Settings {
 				$country_code  = isset( $country['country_code'] ) ? sanitize_text_field( $country['country_code'] ) : '';
 				$url_slug      = isset( $country['url_slug'] ) ? sanitize_text_field( $country['url_slug'] ) : '';
 				$language_code = isset( $country['language_code'] ) ? sanitize_text_field( $country['language_code'] ) : '';
+				$currency_code = isset( $country['currency_code'] ) ? sanitize_text_field( $country['currency_code'] ) : 'EUR';
 				$is_default    = isset( $country['is_default'] ) && $country['is_default'] ? 1 : 0;
 
 				if ( empty( $country_code ) ) {
@@ -276,9 +277,10 @@ class RM_Settings {
 						'country_code'  => $country_code,
 						'url_slug'      => $url_slug,
 						'language_code' => $language_code,
+						'currency_code' => $currency_code,
 						'is_default'    => $is_default,
 					),
-					array( '%d', '%s', '%s', '%s', '%d' )
+					array( '%d', '%s', '%s', '%s', '%s', '%d' )
 				);
 			}
 		}

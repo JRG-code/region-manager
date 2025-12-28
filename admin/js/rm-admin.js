@@ -326,6 +326,7 @@
 							rmCountries[country.country_code],
 							country.url_slug,
 							country.language_code,
+							country.currency_code || 'EUR',
 							country.is_default == 1
 						);
 					});
@@ -335,7 +336,7 @@
 			});
 		},
 
-		addCountry: function( code, name, urlSlug, languageCode, isDefault ) {
+		addCountry: function( code, name, urlSlug, languageCode, currencyCode, isDefault ) {
 			// Check if already added
 			if ( this.selectedCountries.indexOf( code ) !== -1 ) {
 				return;
@@ -345,6 +346,7 @@
 
 			urlSlug = urlSlug || '/' + code.toLowerCase();
 			languageCode = languageCode || 'en_US';
+			currencyCode = currencyCode || 'EUR';
 			isDefault = isDefault || false;
 
 			var row = '<tr data-country="' + code + '">' +
@@ -355,6 +357,11 @@
 				'<td>' +
 				'<select class="rm-input rm-country-language">' +
 				this.getLanguageOptions( languageCode ) +
+				'</select>' +
+				'</td>' +
+				'<td>' +
+				'<select class="rm-input rm-country-currency">' +
+				this.getCurrencyOptions( currencyCode ) +
 				'</select>' +
 				'</td>' +
 				'<td class="rm-text-center">' +
@@ -386,6 +393,18 @@
 			return options;
 		},
 
+		getCurrencyOptions: function( selected ) {
+			var options = '';
+			if ( typeof rmCurrencyCodes !== 'undefined' ) {
+				$.each( rmCurrencyCodes, function( code, label ) {
+					var symbol = ( typeof rmCurrencySymbols !== 'undefined' && rmCurrencySymbols[code] ) ? rmCurrencySymbols[code] : '';
+					options += '<option value="' + code + '"' + ( code === selected ? ' selected' : '' ) + '>' +
+						code + ' - ' + label + ( symbol ? ' (' + symbol + ')' : '' ) + '</option>';
+				});
+			}
+			return options;
+		},
+
 		saveRegion: function() {
 			var regionId = $( '#region_id' ).val();
 			var name = $( '#region_name' ).val().trim();
@@ -409,12 +428,14 @@
 				var countryCode = $( this ).data( 'country' );
 				var urlSlug = $( this ).find( '.rm-country-url-slug' ).val();
 				var languageCode = $( this ).find( '.rm-country-language' ).val();
+				var currencyCode = $( this ).find( '.rm-country-currency' ).val();
 				var isDefault = $( this ).find( '.rm-country-default' ).is( ':checked' );
 
 				countries.push({
 					country_code: countryCode,
 					url_slug: urlSlug,
 					language_code: languageCode,
+					currency_code: currencyCode,
 					is_default: isDefault
 				});
 			});
