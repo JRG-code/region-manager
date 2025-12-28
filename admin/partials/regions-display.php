@@ -86,12 +86,11 @@ $license_info = $license->get_license_info();
 				<table class="wp-list-table widefat fixed striped" id="regions-table">
 					<thead>
 						<tr>
-							<th style="width: 25%;"><?php esc_html_e( 'Name', 'region-manager' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'Slug', 'region-manager' ); ?></th>
-							<th style="width: 15%;"><?php esc_html_e( 'Countries', 'region-manager' ); ?></th>
+							<th style="width: 30%;"><?php esc_html_e( 'Name', 'region-manager' ); ?></th>
+							<th style="width: 20%;"><?php esc_html_e( 'Countries', 'region-manager' ); ?></th>
 							<th style="width: 10%;"><?php esc_html_e( 'Status', 'region-manager' ); ?></th>
 							<th style="width: 15%;"><?php esc_html_e( 'Created', 'region-manager' ); ?></th>
-							<th style="width: 20%;"><?php esc_html_e( 'Actions', 'region-manager' ); ?></th>
+							<th style="width: 25%;"><?php esc_html_e( 'Actions', 'region-manager' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -102,7 +101,6 @@ $license_info = $license->get_license_info();
 							?>
 							<tr data-region-id="<?php echo esc_attr( $region->id ); ?>">
 								<td><strong><?php echo esc_html( $region->name ); ?></strong></td>
-								<td><code><?php echo esc_html( $region->slug ); ?></code></td>
 								<td>
 									<?php
 									if ( $countries_count > 0 ) {
@@ -162,16 +160,9 @@ $license_info = $license->get_license_info();
 								</th>
 								<td>
 									<input type="text" id="region_name" name="region_name" class="regular-text" required>
-									<p class="description"><?php esc_html_e( 'E.g., "Europe", "North America", "Asia Pacific"', 'region-manager' ); ?></p>
-								</td>
-							</tr>
-							<tr>
-								<th scope="row">
-									<label for="region_slug"><?php esc_html_e( 'URL Slug', 'region-manager' ); ?> <span class="required" style="color: #d63638;">*</span></label>
-								</th>
-								<td>
-									<input type="text" id="region_slug" name="region_slug" class="regular-text" required pattern="[a-z0-9\-]+">
-									<p class="description"><?php esc_html_e( 'Used in URLs. Lowercase letters, numbers, and hyphens only.', 'region-manager' ); ?></p>
+									<p class="description"><?php esc_html_e( 'E.g., "Europe", "North America", "Asia Pacific". URL slugs are configured per country below.', 'region-manager' ); ?></p>
+									<!-- Hidden field for auto-generated slug (for backward compatibility) -->
+									<input type="hidden" id="region_slug" name="region_slug" required pattern="[a-z0-9\-]+">
 								</td>
 							</tr>
 							<tr>
