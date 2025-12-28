@@ -30,6 +30,12 @@ class RM_Product_Meta_Box {
 		add_filter( 'bulk_actions-edit-product', array( $this, 'register_bulk_actions' ) );
 		add_filter( 'handle_bulk_actions-edit-product', array( $this, 'handle_bulk_actions' ), 10, 3 );
 		add_action( 'admin_notices', array( $this, 'bulk_action_notices' ) );
+
+		// AJAX handler for quick region assignment.
+		add_action( 'wp_ajax_rm_quick_assign_region', array( $this, 'ajax_quick_assign_region' ) );
+
+		// Enqueue admin scripts for products page.
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 	}
 
 	/**
@@ -425,9 +431,27 @@ class RM_Product_Meta_Box {
 				echo '</span> ';
 			}
 		} else {
-			echo '<span class="rm-no-regions" style="display: inline-block; padding: 3px 8px; background: #dba617; color: #fff; border-radius: 3px; font-size: 12px;">';
-			echo esc_html__( 'None', 'region-manager' );
-			echo '</span>';
+			// Get all active regions for the dropdown.
+			$all_regions = $wpdb->get_results(
+				"SELECT id, name FROM {$wpdb->prefix}rm_regions WHERE status = 'active' ORDER BY name ASC"
+			);
+
+			if ( ! empty( $all_regions ) ) {
+				// Show quick-assign dropdown.
+				echo '<div class="rm-quick-assign-wrapper" style="display: inline-block;">';
+				echo '<select class="rm-quick-assign-region" data-product-id="' . esc_attr( $post_id ) . '" style="font-size: 12px; padding: 2px 5px;">';
+				echo '<option value="">' . esc_html__( '+ Add to region...', 'region-manager' ) . '</option>';
+				echo '<option value="0">' . esc_html__( 'All Regions', 'region-manager' ) . '</option>';
+				foreach ( $all_regions as $region ) {
+					echo '<option value="' . esc_attr( $region->id ) . '">' . esc_html( $region->name ) . '</option>';
+				}
+				echo '</select>';
+				echo '</div>';
+			} else {
+				echo '<span class="rm-no-regions" style="display: inline-block; padding: 3px 8px; background: #dba617; color: #fff; border-radius: 3px; font-size: 12px;">';
+				echo esc_html__( 'No regions', 'region-manager' );
+				echo '</span>';
+			}
 		}
 	}
 
@@ -656,5 +680,121 @@ class RM_Product_Meta_Box {
 			);
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+	}
+
+	/**
+	 * Enqueue admin scripts for products page.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue_admin_scripts( $hook ) {
+		// Only load on products list page.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		if ( 'edit.php' !== $hook || ! isset( $_GET['post_type'] ) || 'product' !== $_GET['post_type'] ) {
+			return;
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		// Add inline script for quick assign functionality.
+		wp_add_inline_script( 'jquery', "
+			jQuery(document).ready(function($) {
+				// Handle quick assign dropdown
+				$(document).on('change', '.rm-quick-assign-region', function() {
+					var \$select = $(this);
+					var productId = \$select.data('product-id');
+					var regionId = \$select.val();
+
+					if (!regionId) {
+						return;
+					}
+
+					// Show loading
+					\$select.prop('disabled', true);
+
+					// Send AJAX request
+					$.ajax({
+						url: ajaxurl,
+						type: 'POST',
+						data: {
+							action: 'rm_quick_assign_region',
+							product_id: productId,
+							region_id: regionId,
+							nonce: '" . wp_create_nonce( 'rm_quick_assign' ) . "'
+						},
+						success: function(response) {
+							if (response.success) {
+								// Reload the page to show updated region badges
+								location.reload();
+							} else {
+								alert(response.data.message || 'Error assigning region');
+								\$select.prop('disabled', false).val('');
+							}
+						},
+						error: function() {
+							alert('Error: Could not assign region');
+							\$select.prop('disabled', false).val('');
+						}
+					});
+				});
+			});
+		" );
+	}
+
+	/**
+	 * AJAX handler for quick region assignment.
+	 */
+	public function ajax_quick_assign_region() {
+		check_ajax_referer( 'rm_quick_assign', 'nonce' );
+
+		if ( ! current_user_can( 'edit_products' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied', 'region-manager' ) ) );
+		}
+
+		$product_id = isset( $_POST['product_id'] ) ? intval( $_POST['product_id'] ) : 0;
+		$region_id  = isset( $_POST['region_id'] ) ? intval( $_POST['region_id'] ) : -1;
+
+		if ( ! $product_id || $region_id < 0 ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid parameters', 'region-manager' ) ) );
+		}
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'rm_product_regions';
+
+		// Clear existing assignments.
+		$wpdb->delete( $table, array( 'product_id' => $product_id ), array( '%d' ) );
+
+		// Insert new assignment.
+		$result = $wpdb->insert(
+			$table,
+			array(
+				'product_id'          => $product_id,
+				'region_id'           => $region_id,
+				'price_override'      => null,
+				'sale_price_override' => null,
+			),
+			array( '%d', '%d', '%s', '%s' )
+		);
+
+		if ( false === $result ) {
+			wp_send_json_error( array( 'message' => __( 'Database error', 'region-manager' ) ) );
+		}
+
+		if ( 0 === $region_id ) {
+			wp_send_json_success( array( 'message' => __( 'Product assigned to All Regions', 'region-manager' ) ) );
+		} else {
+			$region_name = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT name FROM {$wpdb->prefix}rm_regions WHERE id = %d",
+					$region_id
+				)
+			);
+
+			wp_send_json_success(
+				array(
+					/* translators: %s: Region name */
+					'message' => sprintf( __( 'Product assigned to %s', 'region-manager' ), $region_name ),
+				)
+			);
+		}
 	}
 }
