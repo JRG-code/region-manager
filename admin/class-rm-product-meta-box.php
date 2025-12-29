@@ -513,8 +513,9 @@ class RM_Product_Meta_Box {
 		$new_columns = array();
 		foreach ( $columns as $key => $value ) {
 			$new_columns[ $key ] = $value;
+			// Add Regions column after product_cat
 			if ( 'product_cat' === $key ) {
-				$new_columns['regions'] = __( 'Regions', 'region-manager' );
+				$new_columns['rm_regions'] = __( 'Regions', 'region-manager' );
 			}
 		}
 		return $new_columns;
@@ -527,21 +528,21 @@ class RM_Product_Meta_Box {
 	 * @param int    $post_id Product ID.
 	 */
 	public function render_regions_column( $column, $post_id ) {
-		if ( 'regions' !== $column ) {
+		if ( 'rm_regions' !== $column ) {
 			return;
 		}
 
 		$product_regions = $this->get_product_regions( $post_id );
 
 		if ( empty( $product_regions ) ) {
-			echo '<div class="rm-regions-badge-wrapper">';
+			echo '<div class="rm-regions-badge-wrapper" style="min-width: 150px;">';
 			echo '<span class="rm-no-regions">';
 
 			// Add quick-assign dropdown.
 			$regions = $this->get_all_regions();
 			if ( ! empty( $regions ) ) {
 				?>
-				<select class="rm-quick-assign" data-product-id="<?php echo esc_attr( $post_id ); ?>" style="font-size: 11px; padding: 2px;">
+				<select class="rm-quick-assign" data-product-id="<?php echo esc_attr( $post_id ); ?>" style="font-size: 11px; padding: 2px; width: 140px;">
 					<option value=""><?php esc_html_e( 'Add to region...', 'region-manager' ); ?></option>
 					<?php foreach ( $regions as $region ) : ?>
 						<option value="<?php echo esc_attr( $region->id ); ?>"><?php echo esc_html( $region->name ); ?></option>
@@ -557,11 +558,11 @@ class RM_Product_Meta_Box {
 			return;
 		}
 
-		echo '<div class="rm-regions-badge-wrapper">';
+		echo '<div class="rm-regions-badge-wrapper" style="min-width: 150px; max-width: 250px;">';
 		foreach ( $product_regions as $region_data ) {
 			$region = $this->get_region_by_id( $region_data->region_id );
 			if ( $region ) {
-				echo '<span class="rm-region-badge" style="display: inline-block; background: #2271b1; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 2px;">';
+				echo '<span class="rm-region-badge" style="display: inline-block; background: #2271b1; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 2px; white-space: nowrap;">';
 				echo esc_html( $region->name );
 				echo '</span>';
 			}
