@@ -2,7 +2,7 @@
 /**
  * Product Meta Box for WooCommerce integration.
  *
- * Adds a meta box to WooCommerce product edit pages for region assignment and pricing.
+ * Adds a WooCommerce Product Data tab for regional and country-specific pricing.
  *
  * @package    Region_Manager
  * @subpackage Region_Manager/admin
@@ -11,7 +11,7 @@
 /**
  * Product Meta Box class.
  *
- * Handles the region availability and pricing meta box on WooCommerce product pages.
+ * Handles the region availability and multi-currency pricing as a WooCommerce Product Data tab.
  */
 class RM_Product_Meta_Box {
 
@@ -19,8 +19,10 @@ class RM_Product_Meta_Box {
 	 * Initialize the class.
 	 */
 	public function __construct() {
-		add_action( 'add_meta_boxes', array( $this, 'add_region_meta_box' ) );
-		add_action( 'woocommerce_process_product_meta', array( $this, 'save_region_meta' ), 10, 2 );
+		// Add WooCommerce Product Data tab.
+		add_filter( 'woocommerce_product_data_tabs', array( $this, 'add_regional_pricing_tab' ) );
+		add_action( 'woocommerce_product_data_panels', array( $this, 'render_regional_pricing_panel' ) );
+		add_action( 'woocommerce_process_product_meta', array( $this, 'save_regional_pricing' ), 10, 2 );
 
 		// Add Regions column to WooCommerce products list.
 		add_filter( 'manage_edit-product_columns', array( $this, 'add_regions_column' ) );
@@ -30,236 +32,333 @@ class RM_Product_Meta_Box {
 		add_filter( 'bulk_actions-edit-product', array( $this, 'register_bulk_actions' ) );
 		add_filter( 'handle_bulk_actions-edit-product', array( $this, 'handle_bulk_actions' ), 10, 3 );
 		add_action( 'admin_notices', array( $this, 'bulk_action_notices' ) );
+
+		// AJAX handler for quick region assignment.
+		add_action( 'wp_ajax_rm_quick_assign_region', array( $this, 'ajax_quick_assign_region' ) );
+
+		// Enqueue admin scripts for products page.
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
+
+		// Enqueue scripts for product edit page.
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_product_edit_scripts' ) );
 	}
 
 	/**
-	 * Add meta box to product edit page.
-	 */
-	public function add_region_meta_box() {
-		add_meta_box(
-			'rm_product_regions',
-			__( 'Region Availability & Pricing', 'region-manager' ),
-			array( $this, 'render_meta_box' ),
-			'product',
-			'normal',
-			'default'
-		);
-	}
-
-	/**
-	 * Render the meta box content.
+	 * Add Regional Pricing tab to WooCommerce Product Data.
 	 *
-	 * @param WP_Post $post Product post object.
+	 * @param array $tabs Product data tabs.
+	 * @return array Modified tabs.
 	 */
-	public function render_meta_box( $post ) {
-		$product_id      = $post->ID;
-		$regions         = $this->get_all_regions();
-		$product_regions = $this->get_product_regions( $product_id );
+	public function add_regional_pricing_tab( $tabs ) {
+		$tabs['regional_pricing'] = array(
+			'label'    => __( 'Regional Pricing', 'region-manager' ),
+			'target'   => 'regional_pricing_product_data',
+			'class'    => array( 'show_if_simple', 'show_if_variable' ),
+			'priority' => 75,
+		);
+		return $tabs;
+	}
 
-		wp_nonce_field( 'rm_save_product_regions', 'rm_product_regions_nonce' );
+	/**
+	 * Render the Regional Pricing panel.
+	 */
+	public function render_regional_pricing_panel() {
+		global $post;
+		$product_id = $post->ID;
+		$product    = wc_get_product( $product_id );
+		$regions    = $this->get_all_regions();
 
 		if ( empty( $regions ) ) {
-			echo '<p>' . esc_html__( 'No regions configured. ', 'region-manager' );
-			echo '<a href="' . esc_url( admin_url( 'admin.php?page=region-manager-settings' ) ) . '">';
-			echo esc_html__( 'Create regions in settings.', 'region-manager' );
-			echo '</a></p>';
+			$this->render_no_regions_message();
 			return;
 		}
 
+		// Get base WooCommerce price and currency.
+		$base_price      = $product ? $product->get_regular_price() : '';
+		$base_sale_price = $product ? $product->get_sale_price() : '';
+		$base_currency   = get_woocommerce_currency();
+		$base_symbol     = get_woocommerce_currency_symbol( $base_currency );
+
+		// Get regional pricing data.
+		$product_regions   = $this->get_product_regions( $product_id );
+		$product_countries = $this->get_product_country_prices( $product_id );
+
 		?>
-		<div class="rm-product-regions-wrapper">
-			<p class="description">
-				<?php esc_html_e( 'Select which regions this product is available in and optionally set regional pricing.', 'region-manager' ); ?>
-			</p>
+		<div id="regional_pricing_product_data" class="panel woocommerce_options_panel">
+			<div class="rm-regional-pricing-wrapper">
 
-			<table class="rm-regions-table widefat">
-				<thead>
-					<tr>
-						<th class="rm-col-available"><?php esc_html_e( 'Available', 'region-manager' ); ?></th>
-						<th class="rm-col-region"><?php esc_html_e( 'Region', 'region-manager' ); ?></th>
-						<th class="rm-col-countries"><?php esc_html_e( 'Countries', 'region-manager' ); ?></th>
-						<th class="rm-col-price"><?php esc_html_e( 'Price Override', 'region-manager' ); ?></th>
-						<th class="rm-col-sale-price"><?php esc_html_e( 'Sale Price Override', 'region-manager' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<!-- ALL REGIONS option -->
-					<tr class="rm-region-row rm-region-all">
-						<td>
-							<input type="checkbox"
-								   name="rm_regions[all][available]"
-								   id="rm_region_all"
-								   value="1"
-								   <?php checked( $this->is_available_in_all( $product_regions ) ); ?>
-								   class="rm-toggle-all-regions">
-						</td>
-						<td>
-							<label for="rm_region_all">
-								<strong><?php esc_html_e( 'All Regions', 'region-manager' ); ?></strong>
-							</label>
-						</td>
-						<td>
-							<span class="description"><?php esc_html_e( 'Product available everywhere (uses base price)', 'region-manager' ); ?></span>
-						</td>
-						<td>—</td>
-						<td>—</td>
-					</tr>
-
-					<?php
-					foreach ( $regions as $region ) :
-						$region_data         = isset( $product_regions[ $region->id ] ) ? $product_regions[ $region->id ] : null;
-						$is_available        = $region_data ? true : false;
-						$price_override      = $region_data ? $region_data->price_override : '';
-						$sale_price_override = $region_data ? $region_data->sale_price_override : '';
-						$countries           = $this->get_region_countries( $region->id );
+				<!-- Base Price Info -->
+				<div class="rm-base-price-info">
+					<h4><?php esc_html_e( 'WooCommerce Base Price', 'region-manager' ); ?></h4>
+					<p class="description">
+						<?php
+						printf(
+							/* translators: 1: currency symbol, 2: price, 3: sale price, 4: currency code */
+							esc_html__( 'Regular: %1$s%2$s | Sale: %1$s%3$s | Currency: %4$s', 'region-manager' ),
+							esc_html( $base_symbol ),
+							esc_html( $base_price ?: '—' ),
+							esc_html( $base_sale_price ?: '—' ),
+							esc_html( $base_currency )
+						);
 						?>
-						<tr class="rm-region-row" data-region-id="<?php echo esc_attr( $region->id ); ?>">
-							<td>
-								<input type="checkbox"
-									   name="rm_regions[<?php echo esc_attr( $region->id ); ?>][available]"
-									   id="rm_region_<?php echo esc_attr( $region->id ); ?>"
-									   value="1"
-									   <?php checked( $is_available ); ?>
-									   class="rm-region-checkbox">
-							</td>
-							<td>
-								<label for="rm_region_<?php echo esc_attr( $region->id ); ?>">
+					</p>
+					<p class="description">
+						<?php esc_html_e( 'Set regional and country-specific prices below. Leave empty to use base price.', 'region-manager' ); ?>
+					</p>
+				</div>
+
+				<hr style="margin: 20px 0;">
+
+				<!-- Region Tabs -->
+				<div class="rm-region-tabs">
+					<ul class="rm-tab-nav">
+						<?php foreach ( $regions as $index => $region ) : ?>
+							<li class="<?php echo 0 === $index ? 'active' : ''; ?>">
+								<a href="#rm-region-<?php echo esc_attr( $region->id ); ?>" data-region-id="<?php echo esc_attr( $region->id ); ?>">
 									<?php echo esc_html( $region->name ); ?>
-								</label>
-							</td>
-							<td>
-								<span class="rm-countries-list">
+								</a>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+
+					<div class="rm-tab-content">
+						<?php foreach ( $regions as $index => $region ) : ?>
+							<?php
+							$region_data         = isset( $product_regions[ $region->id ] ) ? $product_regions[ $region->id ] : null;
+							$is_available        = $region_data ? true : false;
+							$price_override      = $region_data && $region_data->price_override ? $region_data->price_override : '';
+							$sale_price_override = $region_data && $region_data->sale_price_override ? $region_data->sale_price_override : '';
+							$countries           = $this->get_region_countries( $region->id );
+							?>
+							<div id="rm-region-<?php echo esc_attr( $region->id ); ?>" class="rm-tab-panel <?php echo 0 === $index ? 'active' : ''; ?>" data-region-id="<?php echo esc_attr( $region->id ); ?>">
+
+								<!-- Region Level Settings -->
+								<div class="rm-region-settings">
+									<h4><?php echo esc_html( $region->name ); ?> - <?php esc_html_e( 'Region Settings', 'region-manager' ); ?></h4>
+
+									<p class="form-field">
+										<label>
+											<input type="checkbox"
+												   name="rm_regions[<?php echo esc_attr( $region->id ); ?>][available]"
+												   class="rm-region-available"
+												   value="1"
+												   <?php checked( $is_available ); ?>>
+											<?php esc_html_e( 'Product available in this region', 'region-manager' ); ?>
+										</label>
+									</p>
+
+									<p class="description" style="margin-bottom: 15px;">
+										<?php esc_html_e( 'Set default prices for this region (applies to all countries unless overridden below):', 'region-manager' ); ?>
+									</p>
+
 									<?php
-									foreach ( $countries as $country ) {
-										echo '<span class="rm-flag-small">' . esc_html( $this->get_flag_emoji( $country->country_code ) ) . '</span>';
-									}
+									woocommerce_wp_text_input(
+										array(
+											'id'          => 'rm_region_price_' . $region->id,
+											'name'        => 'rm_regions[' . $region->id . '][price]',
+											'label'       => __( 'Region Price', 'region-manager' ) . ' (' . $base_currency . ')',
+											'value'       => $price_override,
+											'placeholder' => $base_price,
+											'type'        => 'text',
+											'data_type'   => 'price',
+											'desc_tip'    => true,
+											'description' => __( 'Default price for all countries in this region. Leave empty to use base price.', 'region-manager' ),
+										)
+									);
+
+									woocommerce_wp_text_input(
+										array(
+											'id'          => 'rm_region_sale_price_' . $region->id,
+											'name'        => 'rm_regions[' . $region->id . '][sale_price]',
+											'label'       => __( 'Region Sale Price', 'region-manager' ) . ' (' . $base_currency . ')',
+											'value'       => $sale_price_override,
+											'placeholder' => $base_sale_price,
+											'type'        => 'text',
+											'data_type'   => 'price',
+											'desc_tip'    => true,
+											'description' => __( 'Sale price for all countries in this region. Leave empty to use base sale price.', 'region-manager' ),
+										)
+									);
 									?>
-								</span>
-							</td>
-							<td>
-								<input type="text"
-									   name="rm_regions[<?php echo esc_attr( $region->id ); ?>][price]"
-									   value="<?php echo esc_attr( $price_override ); ?>"
-									   class="short wc_input_price rm-price-field"
-									   placeholder="<?php esc_attr_e( 'Use base price', 'region-manager' ); ?>"
-									   <?php disabled( ! $is_available ); ?>>
-							</td>
-							<td>
-								<input type="text"
-									   name="rm_regions[<?php echo esc_attr( $region->id ); ?>][sale_price]"
-									   value="<?php echo esc_attr( $sale_price_override ); ?>"
-									   class="short wc_input_price rm-price-field"
-									   placeholder="<?php esc_attr_e( 'Use base sale price', 'region-manager' ); ?>"
-									   <?php disabled( ! $is_available ); ?>>
-							</td>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
+								</div>
 
-			<p class="rm-help-text">
-				<span class="dashicons dashicons-info"></span>
-				<?php esc_html_e( 'Leave price fields empty to use the product\'s base price. Enter a value to override for that specific region.', 'region-manager' ); ?>
-			</p>
+								<hr style="margin: 20px 0;">
+
+								<!-- Country Specific Pricing -->
+								<div class="rm-country-pricing">
+									<h4><?php esc_html_e( 'Country-Specific Pricing', 'region-manager' ); ?></h4>
+									<p class="description" style="margin-bottom: 15px;">
+										<?php esc_html_e( 'Override prices for specific countries. These prices take priority over region-level prices.', 'region-manager' ); ?>
+									</p>
+
+									<?php if ( ! empty( $countries ) ) : ?>
+										<table class="widefat rm-country-prices-table">
+											<thead>
+												<tr>
+													<th><?php esc_html_e( 'Country', 'region-manager' ); ?></th>
+													<th><?php esc_html_e( 'Currency', 'region-manager' ); ?></th>
+													<th><?php esc_html_e( 'Price', 'region-manager' ); ?></th>
+													<th><?php esc_html_e( 'Sale Price', 'region-manager' ); ?></th>
+												</tr>
+											</thead>
+											<tbody>
+												<?php foreach ( $countries as $country ) : ?>
+													<?php
+													$country_price_data = isset( $product_countries[ $country->country_code ] ) ? $product_countries[ $country->country_code ] : null;
+													$country_price      = $country_price_data ? $country_price_data->price : '';
+													$country_sale_price = $country_price_data ? $country_price_data->sale_price : '';
+													$currency_code      = $country->currency_code ?: 'EUR';
+													$currency_symbol    = get_woocommerce_currency_symbol( $currency_code );
+													$is_diff_currency   = $currency_code !== $base_currency;
+													$country_name       = $this->get_country_name( $country->country_code );
+													?>
+													<tr>
+														<td>
+															<strong><?php echo esc_html( $country_name ); ?></strong>
+															<br>
+															<small><?php echo esc_html( $country->country_code ); ?></small>
+														</td>
+														<td>
+															<?php echo esc_html( $currency_code ); ?> (<?php echo esc_html( $currency_symbol ); ?>)
+															<?php if ( $is_diff_currency ) : ?>
+																<br><span class="rm-currency-warning">⚠ <?php esc_html_e( 'Different currency', 'region-manager' ); ?></span>
+															<?php endif; ?>
+														</td>
+														<td>
+															<input type="text"
+																   name="rm_countries[<?php echo esc_attr( $country->country_code ); ?>][price]"
+																   value="<?php echo esc_attr( $country_price ); ?>"
+																   placeholder="<?php echo esc_attr( $price_override ?: $base_price ); ?>"
+																   class="short wc_input_price">
+															<input type="hidden"
+																   name="rm_countries[<?php echo esc_attr( $country->country_code ); ?>][currency]"
+																   value="<?php echo esc_attr( $currency_code ); ?>">
+														</td>
+														<td>
+															<input type="text"
+																   name="rm_countries[<?php echo esc_attr( $country->country_code ); ?>][sale_price]"
+																   value="<?php echo esc_attr( $country_sale_price ); ?>"
+																   placeholder="<?php echo esc_attr( $sale_price_override ?: $base_sale_price ); ?>"
+																   class="short wc_input_price">
+														</td>
+													</tr>
+												<?php endforeach; ?>
+											</tbody>
+										</table>
+									<?php else : ?>
+										<p class="description">
+											<?php esc_html_e( 'No countries assigned to this region yet.', 'region-manager' ); ?>
+											<a href="<?php echo esc_url( admin_url( 'admin.php?page=region-manager-settings' ) ); ?>">
+												<?php esc_html_e( 'Add countries in region settings.', 'region-manager' ); ?>
+											</a>
+										</p>
+									<?php endif; ?>
+								</div>
+
+							</div>
+						<?php endforeach; ?>
+					</div>
+				</div>
+
+				<style>
+					.rm-regional-pricing-wrapper { padding: 12px; }
+					.rm-base-price-info { background: #f0f6fc; padding: 12px; border-left: 4px solid #2271b1; margin-bottom: 20px; }
+					.rm-base-price-info h4 { margin: 0 0 10px 0; color: #2271b1; }
+					.rm-base-price-info p { margin: 5px 0; }
+
+					.rm-tab-nav { margin: 0; padding: 0; list-style: none; border-bottom: 1px solid #ddd; }
+					.rm-tab-nav li { display: inline-block; margin: 0; }
+					.rm-tab-nav li a { display: block; padding: 10px 15px; text-decoration: none; color: #555; border: 1px solid transparent; border-bottom: none; background: #f9f9f9; }
+					.rm-tab-nav li.active a { background: #fff; border-color: #ddd; color: #2271b1; font-weight: 600; }
+					.rm-tab-nav li a:hover { background: #fff; }
+
+					.rm-tab-content { border: 1px solid #ddd; border-top: none; }
+					.rm-tab-panel { display: none; padding: 20px; }
+					.rm-tab-panel.active { display: block; }
+
+					.rm-region-settings { background: #fafafa; padding: 15px; border: 1px solid #e0e0e0; }
+					.rm-country-pricing { margin-top: 20px; }
+					.rm-country-prices-table { margin-top: 10px; }
+					.rm-country-prices-table th { background: #f9f9f9; padding: 8px; }
+					.rm-country-prices-table td { padding: 8px; vertical-align: top; }
+					.rm-currency-warning { color: #d63638; font-weight: 600; font-size: 11px; }
+				</style>
+
+				<script>
+				jQuery(document).ready(function($) {
+					// Tab switching
+					$('.rm-tab-nav a').on('click', function(e) {
+						e.preventDefault();
+						var regionId = $(this).data('region-id');
+
+						// Update active tab
+						$('.rm-tab-nav li').removeClass('active');
+						$(this).parent().addClass('active');
+
+						// Show panel
+						$('.rm-tab-panel').removeClass('active');
+						$('#rm-region-' + regionId).addClass('active');
+					});
+
+					// Enable/disable region fields based on availability checkbox
+					$('.rm-region-available').on('change', function() {
+						var $panel = $(this).closest('.rm-tab-panel');
+						var isChecked = $(this).is(':checked');
+
+						// No need to disable fields - just let user configure them
+						// The checkbox controls whether the product is available in this region
+					});
+				});
+				</script>
+			</div>
 		</div>
-
-		<style>
-			.rm-product-regions-wrapper { margin-top: 10px; }
-			.rm-regions-table { margin: 15px 0; }
-			.rm-regions-table th { text-align: left; padding: 10px; background: #f9f9f9; }
-			.rm-regions-table td { padding: 10px; vertical-align: middle; }
-			.rm-region-all { background: #f0f6fc; border-bottom: 2px solid #2271b1; font-weight: 600; }
-			.rm-col-available { width: 70px; }
-			.rm-col-region { width: 150px; }
-			.rm-col-countries { width: 200px; }
-			.rm-col-price, .rm-col-sale-price { width: 150px; }
-			.rm-countries-list .rm-flag-small { margin-right: 5px; font-size: 16px; }
-			.rm-price-field:disabled { background: #f5f5f5; }
-			.rm-help-text { color: #666; font-style: italic; margin-top: 15px; }
-			.rm-help-text .dashicons { font-size: 16px; vertical-align: middle; margin-right: 5px; }
-		</style>
-
-		<script>
-		jQuery(document).ready(function($) {
-			// Toggle all regions
-			$('.rm-toggle-all-regions').on('change', function() {
-				var isChecked = $(this).is(':checked');
-				if (isChecked) {
-					// Uncheck all individual regions when "All" is selected
-					$('.rm-region-checkbox').prop('checked', false).trigger('change');
-				}
-			});
-
-			// When individual region is checked
-			$('.rm-region-checkbox').on('change', function() {
-				var $row = $(this).closest('tr');
-				var isChecked = $(this).is(':checked');
-
-				// Enable/disable price fields
-				$row.find('.rm-price-field').prop('disabled', !isChecked);
-
-				// If any individual region is checked, uncheck "All"
-				if (isChecked) {
-					$('.rm-toggle-all-regions').prop('checked', false);
-				}
-			});
-		});
-		</script>
 		<?php
 	}
 
 	/**
-	 * Save region meta when product is saved.
-	 *
-	 * @param int        $product_id Product ID.
-	 * @param WC_Product $product Product object.
+	 * Render message when no regions are configured.
 	 */
-	public function save_region_meta( $product_id, $product ) {
-		if ( ! isset( $_POST['rm_product_regions_nonce'] ) ||
-			! wp_verify_nonce( $_POST['rm_product_regions_nonce'], 'rm_save_product_regions' ) ) {
-			return;
-		}
+	private function render_no_regions_message() {
+		?>
+		<div id="regional_pricing_product_data" class="panel woocommerce_options_panel">
+			<div class="rm-regional-pricing-wrapper" style="padding: 20px;">
+				<p><?php esc_html_e( 'No regions configured.', 'region-manager' ); ?>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=region-manager-settings' ) ); ?>">
+					<?php esc_html_e( 'Create regions in settings.', 'region-manager' ); ?>
+				</a></p>
+			</div>
+		</div>
+		<?php
+	}
 
+	/**
+	 * Save regional and country-specific pricing.
+	 *
+	 * @param int $product_id Product ID.
+	 */
+	public function save_regional_pricing( $product_id ) {
 		if ( ! current_user_can( 'edit_product', $product_id ) ) {
 			return;
 		}
 
 		global $wpdb;
-		$table = $wpdb->prefix . 'rm_product_regions';
+		$table_regions   = $wpdb->prefix . 'rm_product_regions';
+		$table_countries = $wpdb->prefix . 'rm_product_country_prices';
 
-		// Clear existing region assignments.
-		$wpdb->delete( $table, array( 'product_id' => $product_id ), array( '%d' ) );
+		// Clear existing data.
+		$wpdb->delete( $table_regions, array( 'product_id' => $product_id ), array( '%d' ) );
+		$wpdb->delete( $table_countries, array( 'product_id' => $product_id ), array( '%d' ) );
 
-		$regions_data = isset( $_POST['rm_regions'] ) ? $_POST['rm_regions'] : array();
+		// Save region-level pricing.
+		$regions_data = isset( $_POST['rm_regions'] ) ? $_POST['rm_regions'] : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Missing
 
-		// Check if "All Regions" is selected.
-		if ( ! empty( $regions_data['all']['available'] ) ) {
-			// Save with region_id = 0 to indicate "all regions".
-			$wpdb->insert(
-				$table,
-				array(
-					'product_id'         => $product_id,
-					'region_id'          => 0,
-					'price_override'     => null,
-					'sale_price_override' => null,
-				),
-				array( '%d', '%d', '%s', '%s' )
-			);
-			return;
-		}
-
-		// Save individual region assignments.
 		foreach ( $regions_data as $region_id => $data ) {
-			if ( 'all' === $region_id ) {
-				continue;
-			}
-
 			if ( ! empty( $data['available'] ) ) {
 				$price      = ! empty( $data['price'] ) ? floatval( $data['price'] ) : null;
 				$sale_price = ! empty( $data['sale_price'] ) ? floatval( $data['sale_price'] ) : null;
 
 				$wpdb->insert(
-					$table,
+					$table_regions,
 					array(
 						'product_id'          => $product_id,
 						'region_id'           => intval( $region_id ),
@@ -269,6 +368,35 @@ class RM_Product_Meta_Box {
 					array( '%d', '%d', '%f', '%f' )
 				);
 			}
+		}
+
+		// Save country-specific pricing.
+		$countries_data = isset( $_POST['rm_countries'] ) ? $_POST['rm_countries'] : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.NonceVerification.Missing
+
+		foreach ( $countries_data as $country_code => $data ) {
+			// Only save if at least one price field is set.
+			if ( ! empty( $data['price'] ) || ! empty( $data['sale_price'] ) ) {
+				$price        = ! empty( $data['price'] ) ? floatval( $data['price'] ) : null;
+				$sale_price   = ! empty( $data['sale_price'] ) ? floatval( $data['sale_price'] ) : null;
+				$currency     = ! empty( $data['currency'] ) ? sanitize_text_field( wp_unslash( $data['currency'] ) ) : 'EUR';
+
+				$wpdb->insert(
+					$table_countries,
+					array(
+						'product_id'    => $product_id,
+						'country_code'  => sanitize_text_field( $country_code ),
+						'price'         => $price,
+						'sale_price'    => $sale_price,
+						'currency_code' => $currency,
+					),
+					array( '%d', '%s', '%f', '%f', '%s' )
+				);
+			}
+		}
+
+		// Clear WooCommerce product transients.
+		if ( function_exists( 'wc_delete_product_transients' ) ) {
+			wc_delete_product_transients( $product_id );
 		}
 	}
 
@@ -281,7 +409,7 @@ class RM_Product_Meta_Box {
 		global $wpdb;
 		return $wpdb->get_results(
 			"SELECT * FROM {$wpdb->prefix}rm_regions WHERE status = 'active' ORDER BY name ASC"
-		);
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
@@ -297,7 +425,7 @@ class RM_Product_Meta_Box {
 				"SELECT * FROM {$wpdb->prefix}rm_product_regions WHERE product_id = %d",
 				$product_id
 			)
-		);
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		$indexed = array();
 		foreach ( $results as $row ) {
@@ -307,17 +435,29 @@ class RM_Product_Meta_Box {
 	}
 
 	/**
-	 * Check if product is available in all regions.
+	 * Get product's country-specific prices.
 	 *
-	 * @param array $product_regions Product regions data.
-	 * @return bool True if available in all regions.
+	 * @param int $product_id Product ID.
+	 * @return array Indexed by country_code.
 	 */
-	private function is_available_in_all( $product_regions ) {
-		return isset( $product_regions[0] );
+	private function get_product_country_prices( $product_id ) {
+		global $wpdb;
+		$results = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}rm_product_country_prices WHERE product_id = %d",
+				$product_id
+			)
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		$indexed = array();
+		foreach ( $results as $row ) {
+			$indexed[ $row->country_code ] = $row;
+		}
+		return $indexed;
 	}
 
 	/**
-	 * Get countries for a region.
+	 * Get countries for a region with currency info.
 	 *
 	 * @param int $region_id Region ID.
 	 * @return array Array of country objects.
@@ -326,140 +466,140 @@ class RM_Product_Meta_Box {
 		global $wpdb;
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$wpdb->prefix}rm_region_countries WHERE region_id = %d",
+				"SELECT * FROM {$wpdb->prefix}rm_region_countries WHERE region_id = %d ORDER BY country_code",
 				$region_id
 			)
-		);
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**
-	 * Get flag emoji for country code.
+	 * Get country name from country code.
 	 *
 	 * @param string $country_code Two-letter country code.
-	 * @return string Flag emoji.
+	 * @return string Country name.
 	 */
-	private function get_flag_emoji( $country_code ) {
-		$country_code = strtoupper( $country_code );
-		$flag         = '';
-
-		for ( $i = 0; $i < strlen( $country_code ); $i++ ) {
-			$flag .= mb_chr( 127397 + ord( $country_code[ $i ] ) );
+	private function get_country_name( $country_code ) {
+		if ( function_exists( 'WC' ) && WC()->countries ) {
+			$countries = WC()->countries->get_countries();
+			return isset( $countries[ $country_code ] ) ? $countries[ $country_code ] : $country_code;
 		}
-
-		return $flag;
+		return $country_code;
 	}
 
 	/**
-	 * Add Regions column to WooCommerce products list.
+	 * Enqueue scripts for product edit page.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue_product_edit_scripts( $hook ) {
+		if ( 'post.php' !== $hook && 'post-new.php' !== $hook ) {
+			return;
+		}
+
+		$screen = get_current_screen();
+		if ( $screen && 'product' === $screen->post_type ) {
+			wp_enqueue_script( 'wc-admin-meta-boxes' );
+			wp_enqueue_style( 'woocommerce_admin_styles' );
+		}
+	}
+
+	/**
+	 * Add Regions column to products list.
 	 *
 	 * @param array $columns Existing columns.
 	 * @return array Modified columns.
 	 */
 	public function add_regions_column( $columns ) {
-		// Insert Regions column before the "Stock" column or at the end.
 		$new_columns = array();
-
 		foreach ( $columns as $key => $value ) {
-			if ( 'product_tag' === $key ) {
-				$new_columns['rm_regions'] = __( 'Regions', 'region-manager' );
-			}
 			$new_columns[ $key ] = $value;
+			if ( 'product_cat' === $key ) {
+				$new_columns['regions'] = __( 'Regions', 'region-manager' );
+			}
 		}
-
-		// If product_tag doesn't exist, add at the end before date.
-		if ( ! isset( $new_columns['rm_regions'] ) ) {
-			$date = $new_columns['date'];
-			unset( $new_columns['date'] );
-			$new_columns['rm_regions'] = __( 'Regions', 'region-manager' );
-			$new_columns['date']       = $date;
-		}
-
 		return $new_columns;
 	}
 
 	/**
 	 * Render Regions column content.
 	 *
-	 * @param string $column Column name.
-	 * @param int    $post_id Post ID.
+	 * @param string $column  Column name.
+	 * @param int    $post_id Product ID.
 	 */
 	public function render_regions_column( $column, $post_id ) {
-		if ( 'rm_regions' !== $column ) {
+		if ( 'regions' !== $column ) {
 			return;
 		}
 
-		global $wpdb;
-		$table_name = $wpdb->prefix . 'rm_product_regions';
+		$product_regions = $this->get_product_regions( $post_id );
 
-		// Check if product is in all regions.
-		$in_all_regions = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table_name} WHERE product_id = %d AND region_id = 0",
-				$post_id
-			)
-		);
+		if ( empty( $product_regions ) ) {
+			echo '<div class="rm-regions-badge-wrapper">';
+			echo '<span class="rm-no-regions">';
 
-		if ( $in_all_regions > 0 ) {
-			echo '<span class="rm-region-badge rm-all-regions" style="display: inline-block; padding: 3px 8px; background: #00a32a; color: #fff; border-radius: 3px; font-size: 12px;">';
-			echo esc_html__( 'All', 'region-manager' );
-			echo '</span>';
-			return;
-		}
-
-		// Get specific region assignments.
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT r.name, r.slug
-				FROM {$table_name} pr
-				JOIN {$wpdb->prefix}rm_regions r ON pr.region_id = r.id
-				WHERE pr.product_id = %d AND pr.region_id > 0
-				ORDER BY r.name ASC",
-				$post_id
-			)
-		);
-
-		if ( ! empty( $results ) ) {
-			foreach ( $results as $region ) {
-				echo '<span class="rm-region-badge" style="display: inline-block; padding: 3px 8px; margin: 2px; background: #2271b1; color: #fff; border-radius: 3px; font-size: 12px; white-space: nowrap;" title="' . esc_attr( $region->name ) . '">';
-				echo esc_html( $region->name );
-				echo '</span> ';
+			// Add quick-assign dropdown.
+			$regions = $this->get_all_regions();
+			if ( ! empty( $regions ) ) {
+				?>
+				<select class="rm-quick-assign" data-product-id="<?php echo esc_attr( $post_id ); ?>" style="font-size: 11px; padding: 2px;">
+					<option value=""><?php esc_html_e( 'Add to region...', 'region-manager' ); ?></option>
+					<?php foreach ( $regions as $region ) : ?>
+						<option value="<?php echo esc_attr( $region->id ); ?>"><?php echo esc_html( $region->name ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<?php
+			} else {
+				esc_html_e( 'No regions', 'region-manager' );
 			}
-		} else {
-			echo '<span class="rm-no-regions" style="display: inline-block; padding: 3px 8px; background: #dba617; color: #fff; border-radius: 3px; font-size: 12px;">';
-			echo esc_html__( 'None', 'region-manager' );
+
 			echo '</span>';
+			echo '</div>';
+			return;
 		}
+
+		echo '<div class="rm-regions-badge-wrapper">';
+		foreach ( $product_regions as $region_data ) {
+			$region = $this->get_region_by_id( $region_data->region_id );
+			if ( $region ) {
+				echo '<span class="rm-region-badge" style="display: inline-block; background: #2271b1; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 2px;">';
+				echo esc_html( $region->name );
+				echo '</span>';
+			}
+		}
+		echo '</div>';
 	}
 
 	/**
-	 * Register bulk actions for region assignment.
+	 * Get region by ID.
+	 *
+	 * @param int $region_id Region ID.
+	 * @return object|null Region object or null.
+	 */
+	private function get_region_by_id( $region_id ) {
+		global $wpdb;
+		return $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}rm_regions WHERE id = %d",
+				$region_id
+			)
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
+	 * Register bulk actions for products.
 	 *
 	 * @param array $bulk_actions Existing bulk actions.
 	 * @return array Modified bulk actions.
 	 */
 	public function register_bulk_actions( $bulk_actions ) {
-		global $wpdb;
-
-		// Add "Assign to All Regions" action.
-		$bulk_actions['rm_assign_all_regions'] = __( 'Assign to All Regions', 'region-manager' );
-
-		// Get all active regions.
-		$regions = $wpdb->get_results(
-			"SELECT id, name FROM {$wpdb->prefix}rm_regions WHERE status = 'active' ORDER BY name ASC"
-		);
-
-		// Add an action for each region.
+		$regions = $this->get_all_regions();
 		foreach ( $regions as $region ) {
-			$bulk_actions[ 'rm_assign_region_' . $region->id ] = sprintf(
-				/* translators: %s: Region name */
-				__( 'Assign to: %s', 'region-manager' ),
+			$bulk_actions[ 'assign_region_' . $region->id ] = sprintf(
+				/* translators: %s: region name */
+				__( 'Assign to %s', 'region-manager' ),
 				$region->name
 			);
 		}
-
-		// Add "Remove from All Regions" action.
-		$bulk_actions['rm_remove_all_regions'] = __( 'Remove from All Regions', 'region-manager' );
-
 		return $bulk_actions;
 	}
 
@@ -467,108 +607,21 @@ class RM_Product_Meta_Box {
 	 * Handle bulk actions for region assignment.
 	 *
 	 * @param string $redirect_to Redirect URL.
-	 * @param string $action Action name.
-	 * @param array  $post_ids Post IDs.
+	 * @param string $action      Action being performed.
+	 * @param array  $post_ids    Selected product IDs.
 	 * @return string Modified redirect URL.
 	 */
 	public function handle_bulk_actions( $redirect_to, $action, $post_ids ) {
-		// Handle "Assign to All Regions".
-		if ( 'rm_assign_all_regions' === $action ) {
-			$count = $this->bulk_assign_all_regions( $post_ids );
-			$redirect_to = add_query_arg( 'rm_bulk_assigned_all', $count, $redirect_to );
+		if ( 0 !== strpos( $action, 'assign_region_' ) ) {
 			return $redirect_to;
 		}
 
-		// Handle "Remove from All Regions".
-		if ( 'rm_remove_all_regions' === $action ) {
-			$count = $this->bulk_remove_all_regions( $post_ids );
-			$redirect_to = add_query_arg( 'rm_bulk_removed_all', $count, $redirect_to );
-			return $redirect_to;
-		}
+		$region_id = absint( str_replace( 'assign_region_', '', $action ) );
 
-		// Handle region-specific assignment.
-		if ( strpos( $action, 'rm_assign_region_' ) === 0 ) {
-			$region_id = intval( str_replace( 'rm_assign_region_', '', $action ) );
-			if ( $region_id > 0 ) {
-				$count = $this->bulk_assign_to_region( $post_ids, $region_id );
-				$redirect_to = add_query_arg( 'rm_bulk_assigned', $count, $redirect_to );
-				$redirect_to = add_query_arg( 'rm_region_id', $region_id, $redirect_to );
-			}
-			return $redirect_to;
-		}
-
-		return $redirect_to;
-	}
-
-	/**
-	 * Bulk assign products to all regions.
-	 *
-	 * @param array $product_ids Product IDs.
-	 * @return int Number of products assigned.
-	 */
-	private function bulk_assign_all_regions( $product_ids ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'rm_product_regions';
-		$count = 0;
 
-		foreach ( $product_ids as $product_id ) {
-			// Clear existing assignments.
-			$wpdb->delete( $table, array( 'product_id' => $product_id ), array( '%d' ) );
-
-			// Insert "All Regions" assignment.
-			$result = $wpdb->insert(
-				$table,
-				array(
-					'product_id'          => $product_id,
-					'region_id'           => 0,
-					'price_override'      => null,
-					'sale_price_override' => null,
-				),
-				array( '%d', '%d', '%s', '%s' )
-			);
-
-			if ( $result ) {
-				++$count;
-			}
-		}
-
-		return $count;
-	}
-
-	/**
-	 * Bulk remove products from all regions.
-	 *
-	 * @param array $product_ids Product IDs.
-	 * @return int Number of products updated.
-	 */
-	private function bulk_remove_all_regions( $product_ids ) {
-		global $wpdb;
-		$table = $wpdb->prefix . 'rm_product_regions';
-		$count = 0;
-
-		foreach ( $product_ids as $product_id ) {
-			$result = $wpdb->delete( $table, array( 'product_id' => $product_id ), array( '%d' ) );
-			if ( $result !== false ) {
-				++$count;
-			}
-		}
-
-		return $count;
-	}
-
-	/**
-	 * Bulk assign products to a specific region.
-	 *
-	 * @param array $product_ids Product IDs.
-	 * @param int   $region_id Region ID.
-	 * @return int Number of products assigned.
-	 */
-	private function bulk_assign_to_region( $product_ids, $region_id ) {
-		global $wpdb;
-		$table = $wpdb->prefix . 'rm_product_regions';
-		$count = 0;
-
-		foreach ( $product_ids as $product_id ) {
+		foreach ( $post_ids as $product_id ) {
 			// Check if already assigned.
 			$exists = $wpdb->get_var(
 				$wpdb->prepare(
@@ -576,85 +629,131 @@ class RM_Product_Meta_Box {
 					$product_id,
 					$region_id
 				)
-			);
+			); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
-			if ( $exists > 0 ) {
-				// Already assigned, skip.
-				continue;
-			}
-
-			// Remove "All Regions" if exists.
-			$wpdb->delete( $table, array( 'product_id' => $product_id, 'region_id' => 0 ), array( '%d', '%d' ) );
-
-			// Insert assignment.
-			$result = $wpdb->insert(
-				$table,
-				array(
-					'product_id'          => $product_id,
-					'region_id'           => $region_id,
-					'price_override'      => null,
-					'sale_price_override' => null,
-				),
-				array( '%d', '%d', '%s', '%s' )
-			);
-
-			if ( $result ) {
-				++$count;
+			if ( ! $exists ) {
+				$wpdb->insert(
+					$table,
+					array(
+						'product_id' => $product_id,
+						'region_id'  => $region_id,
+					),
+					array( '%d', '%d' )
+				);
 			}
 		}
 
-		return $count;
+		$redirect_to = add_query_arg( 'bulk_assigned_regions', count( $post_ids ), $redirect_to );
+		return $redirect_to;
 	}
 
 	/**
-	 * Display admin notices for bulk actions.
+	 * Show admin notice after bulk actions.
 	 */
 	public function bulk_action_notices() {
+		if ( ! empty( $_REQUEST['bulk_assigned_regions'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$count = intval( $_REQUEST['bulk_assigned_regions'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			printf(
+				'<div class="notice notice-success is-dismissible"><p>' .
+				/* translators: %d: number of products */
+				esc_html( _n( '%d product assigned to region.', '%d products assigned to region.', $count, 'region-manager' ) ) .
+				'</p></div>',
+				esc_html( $count )
+			);
+		}
+	}
+
+	/**
+	 * AJAX handler for quick region assignment.
+	 */
+	public function ajax_quick_assign_region() {
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'edit_products' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
+		}
+
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$region_id  = isset( $_POST['region_id'] ) ? absint( $_POST['region_id'] ) : 0;
+
+		if ( ! $product_id || ! $region_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid parameters.', 'region-manager' ) ) );
+		}
+
 		global $wpdb;
+		$table = $wpdb->prefix . 'rm_product_regions';
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended
-		if ( ! empty( $_REQUEST['rm_bulk_assigned_all'] ) ) {
-			$count = intval( $_REQUEST['rm_bulk_assigned_all'] );
-			printf(
-				'<div class="notice notice-success is-dismissible"><p>' .
-				/* translators: %d: Number of products */
-				esc_html( _n( '%d product assigned to All Regions.', '%d products assigned to All Regions.', $count, 'region-manager' ) ) .
-				'</p></div>',
-				$count
-			);
+		// Check if already assigned.
+		$exists = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE product_id = %d AND region_id = %d",
+				$product_id,
+				$region_id
+			)
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( $exists ) {
+			wp_send_json_error( array( 'message' => __( 'Product already assigned to this region.', 'region-manager' ) ) );
 		}
 
-		if ( ! empty( $_REQUEST['rm_bulk_removed_all'] ) ) {
-			$count = intval( $_REQUEST['rm_bulk_removed_all'] );
-			printf(
-				'<div class="notice notice-success is-dismissible"><p>' .
-				/* translators: %d: Number of products */
-				esc_html( _n( '%d product removed from all regions.', '%d products removed from all regions.', $count, 'region-manager' ) ) .
-				'</p></div>',
-				$count
-			);
+		// Insert assignment.
+		$wpdb->insert(
+			$table,
+			array(
+				'product_id' => $product_id,
+				'region_id'  => $region_id,
+			),
+			array( '%d', '%d' )
+		);
+
+		wp_send_json_success( array( 'message' => __( 'Product assigned to region.', 'region-manager' ) ) );
+	}
+
+	/**
+	 * Enqueue admin scripts for products list page.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue_admin_scripts( $hook ) {
+		if ( 'edit.php' !== $hook ) {
+			return;
 		}
 
-		if ( ! empty( $_REQUEST['rm_bulk_assigned'] ) && ! empty( $_REQUEST['rm_region_id'] ) ) {
-			$count     = intval( $_REQUEST['rm_bulk_assigned'] );
-			$region_id = intval( $_REQUEST['rm_region_id'] );
+		$screen = get_current_screen();
+		if ( $screen && 'product' === $screen->post_type ) {
+			wp_add_inline_script(
+				'jquery',
+				"
+				jQuery(document).ready(function($) {
+					$('.rm-quick-assign').on('change', function() {
+						var productId = $(this).data('product-id');
+						var regionId = $(this).val();
+						var \$select = $(this);
 
-			$region_name = $wpdb->get_var(
-				$wpdb->prepare(
-					"SELECT name FROM {$wpdb->prefix}rm_regions WHERE id = %d",
-					$region_id
-				)
-			);
+						if (!regionId) return;
 
-			printf(
-				'<div class="notice notice-success is-dismissible"><p>' .
-				/* translators: 1: Number of products, 2: Region name */
-				esc_html( _n( '%1$d product assigned to %2$s.', '%1$d products assigned to %2$s.', $count, 'region-manager' ) ) .
-				'</p></div>',
-				$count,
-				esc_html( $region_name )
+						$.ajax({
+							url: ajaxurl,
+							type: 'POST',
+							data: {
+								action: 'rm_quick_assign_region',
+								nonce: rmAdmin.nonce,
+								product_id: productId,
+								region_id: regionId
+							},
+							success: function(response) {
+								if (response.success) {
+									location.reload();
+								} else {
+									alert(response.data.message);
+									\$select.val('');
+								}
+							}
+						});
+					});
+				});
+				"
 			);
 		}
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	}
 }

@@ -108,6 +108,7 @@ require RM_PLUGIN_DIR . 'includes/class-rm-i18n.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-license.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-order-status.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-woocommerce.php';
+require RM_PLUGIN_DIR . 'includes/class-rm-woocommerce-integration.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-rewrite.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-landing-page.php';
 require RM_PLUGIN_DIR . 'includes/class-rm-menu-flag.php';
@@ -325,6 +326,9 @@ final class Region_Manager {
 	private function define_woocommerce_hooks() {
 		// Initialize WooCommerce integration.
 		$woocommerce = new RM_WooCommerce();
+
+		// Initialize WooCommerce price filters and currency switching.
+		RM_WooCommerce_Integration::get_instance();
 
 		// Initialize URL rewrite handler.
 		$rewrite = new RM_Rewrite();
