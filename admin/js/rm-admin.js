@@ -185,23 +185,33 @@
 			data.action = action;
 			data.nonce = rmAdmin.nonce;
 
+			console.log('AJAX Request:', action, data); // Debug log
+
 			$.ajax({
 				url: rmAdmin.ajaxUrl,
 				type: 'POST',
 				data: data,
 				success: function( response ) {
-					if ( response.success && typeof success === 'function' ) {
+					console.log('AJAX Response:', response); // Debug log
+
+					if ( response && response.success && typeof success === 'function' ) {
 						success( response.data );
-					} else if ( ! response.success && typeof error === 'function' ) {
-						error( response.data );
+					} else if ( response && ! response.success && typeof error === 'function' ) {
+						error( response.data || { message: 'Unknown error occurred' } );
+					} else if ( typeof error === 'function' ) {
+						// Invalid response format
+						error({ message: 'Invalid response from server' });
 					}
 				},
 				error: function( jqXHR, textStatus, errorThrown ) {
+					console.error('AJAX Error:', textStatus, errorThrown, jqXHR); // Debug log
+
 					if ( typeof error === 'function' ) {
 						error({
-							message: rmAdmin.i18n.error,
+							message: rmAdmin.i18n.error || 'Network error occurred',
 							status: textStatus,
-							error: errorThrown
+							error: errorThrown,
+							statusCode: jqXHR.status
 						});
 					}
 				}
@@ -445,6 +455,8 @@
 			var buttonText = $button.text();
 			$button.prop( 'disabled', true ).text( 'Saving...' );
 
+			console.log('Saving region:', { regionId, name, slug, status, countries }); // Debug log
+
 			// Send AJAX
 			RegionManagerAdmin.ajax( 'rm_save_region', {
 				region_id: regionId,
@@ -453,6 +465,8 @@
 				status: status,
 				countries: JSON.stringify( countries )
 			}, function( data ) {
+				console.log('Success response:', data); // Debug log
+
 				// Show success feedback on button
 				$button.text( '✓ Saved!' ).css({
 					'background-color': '#00a32a',
@@ -473,6 +487,8 @@
 					location.reload();
 				}, 1500 );
 			}, function( error ) {
+				console.error('Error response:', error); // Debug log
+
 				// Reset button on error
 				$button.prop( 'disabled', false ).text( buttonText ).css({
 					'background-color': '',
@@ -485,7 +501,9 @@
 						window.location.href = error.upgrade_url;
 					}
 				} else {
-					RegionManagerAdmin.showNotice( 'error', error.message || 'Failed to save region' );
+					var errorMsg = error.message || 'Failed to save region';
+					alert( errorMsg );
+					RegionManagerAdmin.showNotice( 'error', errorMsg );
 				}
 			});
 		},
