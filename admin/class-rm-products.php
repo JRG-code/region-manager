@@ -34,6 +34,8 @@ class RM_Products {
 		add_action( 'wp_ajax_rm_toggle_product_availability', array( $this, 'ajax_toggle_product_availability' ) );
 		add_action( 'wp_ajax_rm_get_product_region_data', array( $this, 'ajax_get_product_region_data' ) );
 		add_action( 'wp_ajax_rm_get_products_table', array( $this, 'ajax_get_products_table' ) );
+		add_action( 'wp_ajax_rm_get_regional_pricing_data', array( $this, 'ajax_get_regional_pricing_data' ) );
+		add_action( 'wp_ajax_rm_save_regional_pricing_data', array( $this, 'ajax_save_regional_pricing_data' ) );
 	}
 
 	/**
@@ -687,5 +689,217 @@ class RM_Products {
 				'total_pages' => ceil( $total / $per_page ),
 			)
 		);
+	}
+
+	/**
+	 * AJAX: Get regional pricing data for modal.
+	 */
+	public function ajax_get_regional_pricing_data() {
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
+		}
+
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+
+		if ( ! $product_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid product ID.', 'region-manager' ) ) );
+		}
+
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			wp_send_json_error( array( 'message' => __( 'Product not found.', 'region-manager' ) ) );
+		}
+
+		global $wpdb;
+
+		// Get all active regions.
+		$regions = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}rm_regions WHERE status = 'active' ORDER BY name ASC" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		// Get product regions.
+		$product_regions = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}rm_product_regions WHERE product_id = %d",
+				$product_id
+			),
+			ARRAY_A
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		// Get product country prices.
+		$product_countries = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}rm_product_country_prices WHERE product_id = %d",
+				$product_id
+			),
+			ARRAY_A
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		// Map product regions by region_id.
+		$region_map = array();
+		foreach ( $product_regions as $pr ) {
+			$region_map[ $pr['region_id'] ] = $pr;
+		}
+
+		// Map country prices by country_code.
+		$country_map = array();
+		foreach ( $product_countries as $pc ) {
+			$country_map[ $pc['country_code'] ] = $pc;
+		}
+
+		// Build regions data.
+		$regions_data = array();
+		foreach ( $regions as $region ) {
+			$region_id     = $region->id;
+			$is_available  = isset( $region_map[ $region_id ] );
+			$price_override = $is_available ? $region_map[ $region_id ]['price_override'] : null;
+			$sale_price_override = $is_available ? $region_map[ $region_id ]['sale_price_override'] : null;
+
+			// Get countries for this region.
+			$countries_query = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}rm_region_countries WHERE region_id = %d ORDER BY country_code",
+					$region_id
+				)
+			); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+			$countries_data = array();
+			foreach ( $countries_query as $country ) {
+				$country_name = $this->get_country_name( $country->country_code );
+				$currency_symbol = function_exists( 'get_woocommerce_currency_symbol' ) ? get_woocommerce_currency_symbol( $country->currency_code ) : $country->currency_code;
+
+				$countries_data[] = array(
+					'country_code'    => $country->country_code,
+					'name'            => $country_name,
+					'currency_code'   => $country->currency_code,
+					'currency_symbol' => $currency_symbol,
+				);
+			}
+
+			$regions_data[] = array(
+				'id'                  => $region_id,
+				'name'                => $region->name,
+				'is_available'        => $is_available,
+				'price_override'      => $price_override,
+				'sale_price_override' => $sale_price_override,
+				'countries'           => $countries_data,
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'product'        => array(
+					'id'         => $product_id,
+					'name'       => $product->get_name(),
+					'base_price' => $product->get_regular_price(),
+					'sale_price' => $product->get_sale_price(),
+				),
+				'base_currency'  => get_woocommerce_currency(),
+				'regions'        => $regions_data,
+				'countries'      => $country_map,
+			)
+		);
+	}
+
+	/**
+	 * AJAX: Save regional pricing data from modal.
+	 */
+	public function ajax_save_regional_pricing_data() {
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
+		}
+
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$regions    = isset( $_POST['regions'] ) ? json_decode( wp_unslash( $_POST['regions'] ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$countries  = isset( $_POST['countries'] ) ? json_decode( wp_unslash( $_POST['countries'] ), true ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+		if ( ! $product_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid product ID.', 'region-manager' ) ) );
+		}
+
+		// Ensure arrays.
+		if ( ! is_array( $regions ) ) {
+			$regions = array();
+		}
+		if ( ! is_array( $countries ) ) {
+			$countries = array();
+		}
+
+		global $wpdb;
+		$table_regions   = $wpdb->prefix . 'rm_product_regions';
+		$table_countries = $wpdb->prefix . 'rm_product_country_prices';
+
+		// Clear existing data.
+		$wpdb->delete( $table_regions, array( 'product_id' => $product_id ), array( '%d' ) );
+		$wpdb->delete( $table_countries, array( 'product_id' => $product_id ), array( '%d' ) );
+
+		// Save region-level pricing.
+		foreach ( $regions as $region_data ) {
+			$region_id  = isset( $region_data['region_id'] ) ? absint( $region_data['region_id'] ) : 0;
+			$price      = isset( $region_data['price'] ) && '' !== $region_data['price'] ? floatval( $region_data['price'] ) : null;
+			$sale_price = isset( $region_data['sale_price'] ) && '' !== $region_data['sale_price'] ? floatval( $region_data['sale_price'] ) : null;
+
+			if ( $region_id ) {
+				$wpdb->insert(
+					$table_regions,
+					array(
+						'product_id'          => $product_id,
+						'region_id'           => $region_id,
+						'price_override'      => $price,
+						'sale_price_override' => $sale_price,
+					),
+					array( '%d', '%d', '%f', '%f' )
+				);
+			}
+		}
+
+		// Save country-specific pricing.
+		foreach ( $countries as $country_data ) {
+			$country_code = isset( $country_data['country_code'] ) ? sanitize_text_field( $country_data['country_code'] ) : '';
+			$currency     = isset( $country_data['currency'] ) ? sanitize_text_field( $country_data['currency'] ) : 'EUR';
+			$price        = isset( $country_data['price'] ) && '' !== $country_data['price'] ? floatval( $country_data['price'] ) : null;
+			$sale_price   = isset( $country_data['sale_price'] ) && '' !== $country_data['sale_price'] ? floatval( $country_data['sale_price'] ) : null;
+
+			if ( $country_code && ( $price || $sale_price ) ) {
+				$wpdb->insert(
+					$table_countries,
+					array(
+						'product_id'    => $product_id,
+						'country_code'  => $country_code,
+						'price'         => $price,
+						'sale_price'    => $sale_price,
+						'currency_code' => $currency,
+					),
+					array( '%d', '%s', '%f', '%f', '%s' )
+				);
+			}
+		}
+
+		// Clear WooCommerce product transients.
+		if ( function_exists( 'wc_delete_product_transients' ) ) {
+			wc_delete_product_transients( $product_id );
+		}
+
+		wp_send_json_success(
+			array(
+				'message' => __( 'Regional pricing saved successfully!', 'region-manager' ),
+			)
+		);
+	}
+
+	/**
+	 * Get country name from country code.
+	 *
+	 * @param string $country_code Two-letter country code.
+	 * @return string Country name.
+	 */
+	private function get_country_name( $country_code ) {
+		if ( function_exists( 'WC' ) && WC()->countries ) {
+			$countries = WC()->countries->get_countries();
+			return isset( $countries[ $country_code ] ) ? $countries[ $country_code ] : $country_code;
+		}
+		return $country_code;
 	}
 }
