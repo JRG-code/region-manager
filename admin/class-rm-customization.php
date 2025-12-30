@@ -280,4 +280,27 @@ class RM_Customization {
 		$locations = get_registered_nav_menus();
 		return $locations;
 	}
+
+	/**
+	 * AJAX handler to set landing page as homepage.
+	 */
+	public function set_as_homepage() {
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
+		}
+
+		$page_id = isset( $_POST['page_id'] ) ? absint( $_POST['page_id'] ) : 0;
+
+		if ( ! $page_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid page ID.', 'region-manager' ) ) );
+		}
+
+		// Set the page as homepage
+		update_option( 'page_on_front', $page_id );
+		update_option( 'show_on_front', 'page' );
+
+		wp_send_json_success( array( 'message' => __( 'Homepage updated successfully!', 'region-manager' ) ) );
+	}
 }

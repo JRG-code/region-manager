@@ -452,22 +452,27 @@ if ( ! function_exists( 'is_plugin_active' ) ) {
 
 			$button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> <?php esc_html_e( 'Setting...', 'region-manager' ); ?>');
 
-			$.post(ajaxurl, {
-				action: 'update_option',
-				option_name: 'page_on_front',
-				option_value: pageId
-			}, function() {
-				$.post(ajaxurl, {
-					action: 'update_option',
-					option_name: 'show_on_front',
-					option_value: 'page'
-				}, function() {
-					alert('<?php esc_html_e( 'Homepage updated successfully! Refreshing...', 'region-manager' ); ?>');
-					location.reload();
-				});
-			}).fail(function() {
-				alert('<?php esc_html_e( 'An error occurred. Please try again.', 'region-manager' ); ?>');
-				$button.prop('disabled', false).html(originalText);
+			$.ajax({
+				url: ajaxurl,
+				type: 'POST',
+				data: {
+					action: 'rm_set_as_homepage',
+					nonce: '<?php echo esc_js( wp_create_nonce( 'rm_admin_nonce' ) ); ?>',
+					page_id: pageId
+				},
+				success: function(response) {
+					if (response.success) {
+						alert('<?php esc_html_e( 'Homepage updated successfully! Refreshing...', 'region-manager' ); ?>');
+						location.reload();
+					} else {
+						alert(response.data.message || '<?php esc_html_e( 'Failed to update homepage.', 'region-manager' ); ?>');
+						$button.prop('disabled', false).html(originalText);
+					}
+				},
+				error: function() {
+					alert('<?php esc_html_e( 'An error occurred. Please try again.', 'region-manager' ); ?>');
+					$button.prop('disabled', false).html(originalText);
+				}
 			});
 		});
 
