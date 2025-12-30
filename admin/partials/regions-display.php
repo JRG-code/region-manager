@@ -252,7 +252,17 @@ $license_info = $license->get_license_info();
 		if ( function_exists( 'get_woocommerce_currencies' ) ) {
 			echo wp_json_encode( get_woocommerce_currencies() );
 		} else {
-			echo '{}';
+			// Fallback currencies if WooCommerce is not available
+			echo wp_json_encode( array(
+				'EUR' => 'Euro',
+				'USD' => 'United States Dollar',
+				'GBP' => 'Pound Sterling',
+				'BRL' => 'Brazilian Real',
+				'CAD' => 'Canadian Dollar',
+				'AUD' => 'Australian Dollar',
+				'JPY' => 'Japanese Yen',
+				'CHF' => 'Swiss Franc',
+			) );
 		}
 	?>;
 
@@ -261,7 +271,17 @@ $license_info = $license->get_license_info();
 		if ( function_exists( 'get_woocommerce_currency_symbols' ) ) {
 			echo wp_json_encode( get_woocommerce_currency_symbols() );
 		} else {
-			echo '{}';
+			// Fallback symbols
+			echo wp_json_encode( array(
+				'EUR' => '€',
+				'USD' => '$',
+				'GBP' => '£',
+				'BRL' => 'R$',
+				'CAD' => 'C$',
+				'AUD' => 'A$',
+				'JPY' => '¥',
+				'CHF' => 'CHF',
+			) );
 		}
 	?>;
 </script>
