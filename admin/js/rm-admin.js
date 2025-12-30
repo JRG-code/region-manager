@@ -405,11 +405,23 @@
 
 		getCurrencyOptions: function( selected ) {
 			var options = '';
-			if ( typeof rmCurrencyCodes !== 'undefined' ) {
+			if ( typeof rmCurrencyCodes !== 'undefined' && Object.keys(rmCurrencyCodes).length > 0 ) {
 				$.each( rmCurrencyCodes, function( code, label ) {
 					var symbol = ( typeof rmCurrencySymbols !== 'undefined' && rmCurrencySymbols[code] ) ? rmCurrencySymbols[code] : '';
 					options += '<option value="' + code + '"' + ( code === selected ? ' selected' : '' ) + '>' +
 						code + ' - ' + label + ( symbol ? ' (' + symbol + ')' : '' ) + '</option>';
+				});
+			} else {
+				// Fallback if currencies not loaded
+				console.warn('rmCurrencyCodes not defined, using fallback');
+				var fallbackCurrencies = {
+					'EUR': '€ Euro',
+					'USD': '$ US Dollar',
+					'GBP': '£ Pound Sterling',
+					'BRL': 'R$ Brazilian Real'
+				};
+				$.each( fallbackCurrencies, function( code, label ) {
+					options += '<option value="' + code + '"' + ( code === selected ? ' selected' : '' ) + '>' + label + '</option>';
 				});
 			}
 			return options;
