@@ -184,8 +184,30 @@ $license_info = $license->get_license_info();
 									<select id="country-select" class="regular-text" style="width: 100%;">
 										<option value=""><?php esc_html_e( 'Select a country...', 'region-manager' ); ?></option>
 										<?php
-										$countries_obj = new WC_Countries();
-										$all_countries = $countries_obj->get_countries();
+										// Get countries from WooCommerce or use fallback
+										if ( class_exists( 'WC_Countries' ) ) {
+											$countries_obj = new WC_Countries();
+											$all_countries = $countries_obj->get_countries();
+										} else {
+											// Fallback countries if WooCommerce is not available
+											$all_countries = array(
+												'PT' => 'Portugal',
+												'ES' => 'Spain',
+												'FR' => 'France',
+												'DE' => 'Germany',
+												'IT' => 'Italy',
+												'GB' => 'United Kingdom',
+												'US' => 'United States',
+												'BR' => 'Brazil',
+												'CA' => 'Canada',
+												'AU' => 'Australia',
+												'NL' => 'Netherlands',
+												'BE' => 'Belgium',
+												'CH' => 'Switzerland',
+												'AT' => 'Austria',
+												'IE' => 'Ireland',
+											);
+										}
 										foreach ( $all_countries as $code => $name ) {
 											echo '<option value="' . esc_attr( $code ) . '">' . esc_html( $name ) . ' (' . esc_html( $code ) . ')</option>';
 										}
@@ -228,6 +250,8 @@ $license_info = $license->get_license_info();
 <script type="text/javascript">
 	// Store countries data for JavaScript
 	var rmCountries = <?php echo wp_json_encode( $all_countries ); ?>;
+	console.log('rmCountries loaded:', rmCountries);
+	console.log('rmCountries count:', Object.keys(rmCountries || {}).length);
 
 	// Language codes
 	var rmLanguageCodes = {
