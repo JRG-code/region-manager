@@ -276,9 +276,15 @@
 			// Country select
 			$( document ).on( 'change', '#country-select', function() {
 				var countryCode = $( this ).val();
+				console.log('Country selected:', countryCode);
+				console.log('rmCountries defined?', typeof rmCountries !== 'undefined');
+				console.log('rmCountries:', rmCountries);
 				if ( countryCode && typeof rmCountries !== 'undefined' ) {
+					console.log('Adding country:', countryCode, rmCountries[countryCode]);
 					RegionManager.addCountry( countryCode, rmCountries[countryCode] );
 					$( this ).val( '' ).trigger( 'change' );
+				} else {
+					console.error('Cannot add country. Code:', countryCode, 'rmCountries defined:', typeof rmCountries !== 'undefined');
 				}
 			});
 
