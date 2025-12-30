@@ -27,6 +27,9 @@ class RM_Settings {
 		add_action( 'wp_ajax_rm_save_region', array( $this, 'ajax_save_region' ) );
 		add_action( 'wp_ajax_rm_delete_region', array( $this, 'ajax_delete_region' ) );
 		add_action( 'wp_ajax_rm_get_region', array( $this, 'ajax_get_region' ) );
+		add_action( 'wp_ajax_rm_save_country', array( $this, 'ajax_save_country' ) );
+		add_action( 'wp_ajax_rm_get_country', array( $this, 'ajax_get_country' ) );
+		add_action( 'wp_ajax_rm_delete_country', array( $this, 'ajax_delete_country' ) );
 		add_action( 'wp_ajax_rm_save_checkout_settings', array( $this, 'ajax_save_checkout_settings' ) );
 	}
 
@@ -495,5 +498,156 @@ class RM_Settings {
 		}
 
 		return $plugins;
+	}
+
+	/**
+	 * AJAX handler to save a country.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_save_country() {
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
+		}
+
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'rm_region_countries';
+
+		$country_id    = isset( $_POST['country_id'] ) ? absint( $_POST['country_id'] ) : 0;
+		$region_id     = isset( $_POST['region_id'] ) ? absint( $_POST['region_id'] ) : 0;
+		$country_code  = isset( $_POST['country_code'] ) ? sanitize_text_field( wp_unslash( $_POST['country_code'] ) ) : '';
+		$url_slug      = isset( $_POST['url_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['url_slug'] ) ) : '';
+		$language_code = isset( $_POST['language_code'] ) ? sanitize_text_field( wp_unslash( $_POST['language_code'] ) ) : '';
+		$currency_code = isset( $_POST['currency_code'] ) ? sanitize_text_field( wp_unslash( $_POST['currency_code'] ) ) : '';
+		$is_default    = isset( $_POST['is_default'] ) ? absint( $_POST['is_default'] ) : 0;
+
+		if ( empty( $region_id ) || empty( $country_code ) || empty( $url_slug ) || empty( $language_code ) ) {
+			wp_send_json_error( array( 'message' => __( 'Missing required fields.', 'region-manager' ) ) );
+		}
+
+		// If this is set as default, unset other defaults in the region
+		if ( $is_default ) {
+			$wpdb->update(
+				$table_name,
+				array( 'is_default' => 0 ),
+				array( 'region_id' => $region_id ),
+				array( '%d' ),
+				array( '%d' )
+			);
+		}
+
+		$data = array(
+			'region_id'     => $region_id,
+			'country_code'  => $country_code,
+			'url_slug'      => $url_slug,
+			'language_code' => $language_code,
+			'currency_code' => $currency_code,
+			'is_default'    => $is_default,
+		);
+
+		$format = array( '%d', '%s', '%s', '%s', '%s', '%d' );
+
+		if ( $country_id > 0 ) {
+			// Update existing country
+			$result = $wpdb->update(
+				$table_name,
+				$data,
+				array( 'id' => $country_id ),
+				$format,
+				array( '%d' )
+			);
+		} else {
+			// Insert new country
+			$result = $wpdb->insert(
+				$table_name,
+				$data,
+				$format
+			);
+			$country_id = $wpdb->insert_id;
+		}
+
+		if ( false === $result ) {
+			wp_send_json_error( array( 'message' => __( 'Failed to save country.', 'region-manager' ) ) );
+		}
+
+		wp_send_json_success(
+			array(
+				'message'    => __( 'Country saved successfully.', 'region-manager' ),
+				'country_id' => $country_id,
+			)
+		);
+	}
+
+	/**
+	 * AJAX handler to get a country.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_get_country() {
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
+		}
+
+		$country_id = isset( $_POST['country_id'] ) ? absint( $_POST['country_id'] ) : 0;
+
+		if ( ! $country_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid country ID.', 'region-manager' ) ) );
+		}
+
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'rm_region_countries';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$country = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$table_name} WHERE id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$country_id
+			)
+		);
+
+		if ( ! $country ) {
+			wp_send_json_error( array( 'message' => __( 'Country not found.', 'region-manager' ) ) );
+		}
+
+		wp_send_json_success( array( 'country' => $country ) );
+	}
+
+	/**
+	 * AJAX handler to delete a country.
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_delete_country() {
+		check_ajax_referer( 'rm_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'region-manager' ) ) );
+		}
+
+		$country_id = isset( $_POST['country_id'] ) ? absint( $_POST['country_id'] ) : 0;
+
+		if ( ! $country_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid country ID.', 'region-manager' ) ) );
+		}
+
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'rm_region_countries';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$result = $wpdb->delete(
+			$table_name,
+			array( 'id' => $country_id ),
+			array( '%d' )
+		);
+
+		if ( false === $result ) {
+			wp_send_json_error( array( 'message' => __( 'Failed to delete country.', 'region-manager' ) ) );
+		}
+
+		wp_send_json_success( array( 'message' => __( 'Country deleted successfully.', 'region-manager' ) ) );
 	}
 }
