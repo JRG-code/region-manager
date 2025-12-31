@@ -523,7 +523,11 @@ class RM_Settings {
 		$currency_code = isset( $_POST['currency_code'] ) ? sanitize_text_field( wp_unslash( $_POST['currency_code'] ) ) : '';
 		$is_default    = isset( $_POST['is_default'] ) ? absint( $_POST['is_default'] ) : 0;
 
+		// Debug logging
+		error_log( 'RM Save Country - Received data: ' . wp_json_encode( $_POST ) );
+
 		if ( empty( $region_id ) || empty( $country_code ) || empty( $url_slug ) || empty( $language_code ) ) {
+			error_log( 'RM Save Country - Missing fields. Region: ' . $region_id . ', Country: ' . $country_code . ', Slug: ' . $url_slug . ', Lang: ' . $language_code );
 			wp_send_json_error( array( 'message' => __( 'Missing required fields.', 'region-manager' ) ) );
 		}
 
@@ -558,6 +562,7 @@ class RM_Settings {
 				$format,
 				array( '%d' )
 			);
+			error_log( 'RM Save Country - Update result: ' . var_export( $result, true ) . ', Error: ' . $wpdb->last_error );
 		} else {
 			// Insert new country
 			$result = $wpdb->insert(
@@ -566,12 +571,16 @@ class RM_Settings {
 				$format
 			);
 			$country_id = $wpdb->insert_id;
+			error_log( 'RM Save Country - Insert result: ' . var_export( $result, true ) . ', Insert ID: ' . $country_id . ', Error: ' . $wpdb->last_error );
 		}
 
 		if ( false === $result ) {
-			wp_send_json_error( array( 'message' => __( 'Failed to save country.', 'region-manager' ) ) );
+			$error_message = $wpdb->last_error ? $wpdb->last_error : __( 'Failed to save country.', 'region-manager' );
+			error_log( 'RM Save Country - Failed with error: ' . $error_message );
+			wp_send_json_error( array( 'message' => $error_message ) );
 		}
 
+		error_log( 'RM Save Country - Success! Country ID: ' . $country_id );
 		wp_send_json_success(
 			array(
 				'message'    => __( 'Country saved successfully.', 'region-manager' ),

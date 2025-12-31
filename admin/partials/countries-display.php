@@ -297,6 +297,46 @@ jQuery(document).ready(function($) {
 		const countryCode = $(this).val();
 		if (countryCode) {
 			$('#url_slug').val('/' + countryCode.toLowerCase());
+
+			// Auto-fill language and currency based on country
+			const countryDefaults = {
+				'PT': { language: 'pt_PT', currency: 'EUR' },
+				'ES': { language: 'es_ES', currency: 'EUR' },
+				'FR': { language: 'fr_FR', currency: 'EUR' },
+				'DE': { language: 'de_DE', currency: 'EUR' },
+				'IT': { language: 'it_IT', currency: 'EUR' },
+				'GB': { language: 'en_GB', currency: 'GBP' },
+				'US': { language: 'en_US', currency: 'USD' },
+				'BR': { language: 'pt_BR', currency: 'BRL' },
+				'NL': { language: 'nl_NL', currency: 'EUR' },
+				'BE': { language: 'nl_NL', currency: 'EUR' },
+				'CH': { language: 'de_DE', currency: 'CHF' },
+				'AT': { language: 'de_DE', currency: 'EUR' },
+				'IE': { language: 'en_GB', currency: 'EUR' },
+				'CA': { language: 'en_US', currency: 'CAD' },
+				'AU': { language: 'en_US', currency: 'AUD' },
+				'NZ': { language: 'en_GB', currency: 'NZD' },
+				'MX': { language: 'es_ES', currency: 'MXN' },
+				'AR': { language: 'es_ES', currency: 'ARS' },
+				'CL': { language: 'es_ES', currency: 'CLP' },
+				'CO': { language: 'es_ES', currency: 'COP' },
+				'PE': { language: 'es_ES', currency: 'PEN' },
+				'JP': { language: 'ja', currency: 'JPY' },
+				'CN': { language: 'zh_CN', currency: 'CNY' },
+				'KR': { language: 'ko_KR', currency: 'KRW' },
+				'IN': { language: 'en_US', currency: 'INR' },
+				'RU': { language: 'ru_RU', currency: 'RUB' },
+				'PL': { language: 'pl_PL', currency: 'PLN' },
+				'SE': { language: 'en_GB', currency: 'SEK' },
+				'NO': { language: 'en_GB', currency: 'NOK' },
+				'DK': { language: 'en_GB', currency: 'DKK' },
+				'FI': { language: 'en_GB', currency: 'EUR' }
+			};
+
+			if (countryDefaults[countryCode]) {
+				$('#language_code').val(countryDefaults[countryCode].language);
+				$('#currency_code').val(countryDefaults[countryCode].currency);
+			}
 		}
 	});
 
@@ -327,9 +367,25 @@ jQuery(document).ready(function($) {
 		const currencyCode = $('#currency_code').val();
 		const isDefault = $('#is_default').is(':checked') ? 1 : 0;
 
+		console.log('Saving country with data:', {
+			country_id: countryId,
+			region_id: regionId,
+			country_code: countryCode,
+			url_slug: urlSlug,
+			language_code: languageCode,
+			currency_code: currencyCode,
+			is_default: isDefault
+		});
+
 		// Validation
 		if (!countryCode || !urlSlug || !languageCode || !currencyCode) {
 			alert('<?php esc_html_e( 'Please fill in all required fields.', 'region-manager' ); ?>');
+			console.error('Validation failed. Missing:', {
+				countryCode: !countryCode,
+				urlSlug: !urlSlug,
+				languageCode: !languageCode,
+				currencyCode: !currencyCode
+			});
 			return;
 		}
 
@@ -353,15 +409,19 @@ jQuery(document).ready(function($) {
 				is_default: isDefault
 			},
 			success: function(response) {
+				console.log('AJAX response:', response);
 				if (response.success) {
+					console.log('Country saved successfully!');
 					// Reload page to show new country
 					window.location.reload();
 				} else {
+					console.error('Save failed:', response.data);
 					alert(response.data.message || '<?php esc_html_e( 'Failed to save country.', 'region-manager' ); ?>');
 					$button.text(originalText).prop('disabled', false);
 				}
 			},
-			error: function() {
+			error: function(xhr, status, error) {
+				console.error('AJAX error:', {xhr: xhr, status: status, error: error});
 				alert('<?php esc_html_e( 'An error occurred. Please try again.', 'region-manager' ); ?>');
 				$button.text(originalText).prop('disabled', false);
 			}
