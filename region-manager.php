@@ -135,6 +135,26 @@ add_action(
 );
 
 /**
+ * Run database migrations on admin_init.
+ * This ensures any new columns/tables are added even if plugin was activated before migration code existed.
+ */
+add_action(
+	'admin_init',
+	function () {
+		global $wpdb;
+		$table_prefix = $wpdb->prefix;
+
+		// Check and add currency_code column to rm_region_countries if it doesn't exist
+		$column_check = $wpdb->get_row( "SHOW COLUMNS FROM {$table_prefix}rm_region_countries WHERE Field = 'currency_code'" );
+		if ( ! $column_check ) {
+			$wpdb->query( "ALTER TABLE {$table_prefix}rm_region_countries ADD COLUMN currency_code VARCHAR(3) DEFAULT 'EUR' AFTER language_code" );
+			$wpdb->query( "ALTER TABLE {$table_prefix}rm_region_countries ADD KEY currency_code (currency_code)" );
+			error_log( 'RM Migration: Added currency_code column to rm_region_countries table' );
+		}
+	}
+);
+
+/**
  * Main Region Manager Class.
  *
  * @since 1.0.0
