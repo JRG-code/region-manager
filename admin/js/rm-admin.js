@@ -142,13 +142,19 @@
 				.addClass( 'notice notice-' + type + ' is-dismissible' )
 				.html( '<p>' + message + '</p>' );
 
+			// Add dismiss button manually
+			var $dismissButton = $( '<button type="button" class="notice-dismiss"><span class="screen-reader-text">Dismiss this notice.</span></button>' );
+			$notice.append( $dismissButton );
+
 			// Insert after page title
 			$( '.wrap h1' ).first().after( $notice );
 
-			// Initialize dismiss button
-			if ( typeof wp !== 'undefined' && wp.notices ) {
-				wp.notices.init();
-			}
+			// Handle dismiss button click
+			$dismissButton.on( 'click', function() {
+				$notice.fadeOut( function() {
+					$( this ).remove();
+				});
+			});
 
 			// Auto-dismiss after 5 seconds
 			setTimeout( function() {
