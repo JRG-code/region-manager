@@ -185,13 +185,15 @@ $country_codes_in_region = wp_list_pluck( $countries, 'country_code' );
 											);
 										}
 										foreach ( $modal_all_countries as $code => $name ) {
-											// Skip countries already in this region
-											if ( ! in_array( $code, $country_codes_in_region, true ) ) {
-												echo '<option value="' . esc_attr( $code ) . '">' . esc_html( $name ) . ' (' . esc_html( $code ) . ')</option>';
-											}
+											// Show all countries (filtering will be done in JavaScript based on add/edit mode)
+											$disabled = in_array( $code, $country_codes_in_region, true ) ? 'disabled' : '';
+											echo '<option value="' . esc_attr( $code ) . '" ' . $disabled . ' data-in-region="' . ( in_array( $code, $country_codes_in_region, true ) ? '1' : '0' ) . '">' . esc_html( $name ) . ' (' . esc_html( $code ) . ')</option>';
 										}
 										?>
 									</select>
+									<p class="description" id="country-edit-note" style="display:none; color: #d63638;">
+										<?php esc_html_e( 'Country cannot be changed when editing. Delete and create new if needed.', 'region-manager' ); ?>
+									</p>
 								</td>
 							</tr>
 							<tr>
@@ -355,6 +357,15 @@ jQuery(document).ready(function($) {
 		$('#rm-country-form')[0].reset();
 		$('#country_id').val(0);
 		$('#country_region_id').val(<?php echo esc_js( $selected_region_id ); ?>);
+		$('#rm-country-modal-title').text('<?php esc_html_e( 'Add Country to Region', 'region-manager' ); ?>');
+
+		// Enable country dropdown for adding
+		$('#country_code').prop('disabled', false);
+		$('#country-edit-note').hide();
+
+		// Reset disabled states (countries already in region stay disabled)
+		$('#country_code option[data-in-region="1"]').prop('disabled', true);
+
 		$('#rm-country-modal').fadeIn(200);
 		$('body').addClass('rm-modal-open');
 	}
@@ -365,6 +376,12 @@ jQuery(document).ready(function($) {
 	}
 
 	function saveCountry() {
+		// Temporarily enable country dropdown if disabled (during edit) to get its value
+		const wasDisabled = $('#country_code').prop('disabled');
+		if (wasDisabled) {
+			$('#country_code').prop('disabled', false);
+		}
+
 		const countryId = $('#country_id').val();
 		const regionId = $('#country_region_id').val();
 		const countryCode = $('#country_code').val();
@@ -372,6 +389,11 @@ jQuery(document).ready(function($) {
 		const languageCode = $('#language_code').val();
 		const currencyCode = $('#currency_code').val();
 		const isDefault = $('#is_default').is(':checked') ? 1 : 0;
+
+		// Re-disable if it was disabled
+		if (wasDisabled) {
+			$('#country_code').prop('disabled', true);
+		}
 
 		console.log('Saving country with data:', {
 			country_id: countryId,
@@ -454,7 +476,18 @@ jQuery(document).ready(function($) {
 					const country = response.data.country;
 					$('#country_id').val(country.id);
 					$('#country_region_id').val(country.region_id);
+
+					// Enable the current country option temporarily to allow selection
+					$('#country_code option').prop('disabled', false);
+					$('#country_code option[data-in-region="1"]').prop('disabled', true);
+					$('#country_code option[value="' + country.country_code + '"]').prop('disabled', false);
+
 					$('#country_code').val(country.country_code);
+
+					// Disable country dropdown when editing (can't change country)
+					$('#country_code').prop('disabled', true);
+					$('#country-edit-note').show();
+
 					$('#url_slug').val(country.url_slug);
 					$('#language_code').val(country.language_code);
 					$('#currency_code').val(country.currency_code || 'EUR');
